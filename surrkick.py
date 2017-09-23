@@ -9,7 +9,7 @@ import scipy.integrate
 from scipy.interpolate import InterpolatedUnivariateSpline as spline
 import NRSur7dq2
 #sur = NRSur7dq2.NRSurrogate7dq2('NRSur7dq2.h5')
-
+from singleton_decorator import singleton
 
 __author__ = "Davide Gerosa"
 __email__ = "dgerosa@caltech.edu"
@@ -20,16 +20,6 @@ __doc__="**Author** "+__author__+"\n\n"+\
         "**Licence** "+__license__+"\n\n"+\
         "**Version** "+__version__+"\n\n"+\
         __doc__
-
-
-def singleton(class_):
-    ''' Implement the singleton pattern in Python. See https://stackoverflow.com/q/6760685/4481987'''
-    instances = {}
-    def getinstance(*args, **kwargs):
-        if class_ not in instances:
-            instances[class_] = class_(*args, **kwargs)
-        return instances[class_]
-    return getinstance
 
 
 class summodes(object):
@@ -58,8 +48,6 @@ class summodes(object):
         return iterations
 
 
-
-
 class coeffs(object):
     ''' Coefficients of the linear momentum expression, from Eqs. (3.16-3.19) of arXiv:0707.4654. All are defined as static methods and can be called with, e.g., `coeffs.a(l,m)` withtout first defining an instance of the `coeffs` class.'''
 
@@ -82,7 +70,6 @@ class coeffs(object):
     def d(l,m):
         '''Eq. (3.19) of arXiv:0707.4654'''
         return  ( 1/l ) *  ( ( (l-2) * (l+2) * (l-m) * (l+m) ) / ( (2*l-1) * (2*l+1) ))**0.5
-
 
 class convert(object):
     ''' Convert units to other units'''
@@ -387,6 +374,7 @@ class plots(object):
             rc('ytick',right=True)
             import matplotlib.pyplot as plt
             from mpl_toolkits.mplot3d import Axes3D
+
             #function(*args, **kw)
             function(self)
 
@@ -402,8 +390,6 @@ class plots(object):
     def nonspinning(self):
 
         #plotting()
-
-
 
         def fitchett_fit(q):
             ''' Simple fitting formula for non-spinning BH from Fitchett (1983). Coefficients from arXiv:0610154'''
@@ -494,7 +480,7 @@ class plots(object):
         x,y,z=np.transpose(np.transpose(sk.trajectory(sk.times))[np.logical_and(sk.times>-1000,sk.times<20)])
         ax.plot(x-x0,y-y0,z-z0)
 
-        ax.scatter(0,0,0,marker='x',s=40,alpha=0.5)
+        ax.scatter(0,0,0,marker='.',s=40,alpha=0.5)
         x,y,z=sk.trajectory(sk.times)
         vx,vy,vz=sk.voft(sk.times)
         for t in [-50,-10,-2,2,10,18]:
@@ -526,3 +512,8 @@ if __name__ == "__main__":
     #plots.nonspinning()
     #plots.profiles()
     plots.centerofmass()
+    #
+    # sur=surrogate()
+    # print(sur)
+    # sur2=surrogate()
+    # print(sur2)
