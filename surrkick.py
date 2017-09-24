@@ -10,6 +10,7 @@ from scipy.interpolate import InterpolatedUnivariateSpline as spline
 import NRSur7dq2
 #sur = NRSur7dq2.NRSurrogate7dq2('NRSur7dq2.h5')
 from singleton_decorator import singleton
+import precession
 
 __author__ = "Davide Gerosa"
 __email__ = "dgerosa@caltech.edu"
@@ -121,6 +122,10 @@ class surrkick(object):
         self._hdotintfix = None
         self._hdotsamplefix = None
         self._lmax = None
+        self._Eoftint=None
+        self._Eoftsample=None
+        self._Eoft=None
+        self._Erad=None
         self._Poftint=None
         self._Poftsample=None
         self._Poft=None
@@ -188,6 +193,71 @@ class surrkick(object):
             else:
                 # Put complex and real part bach together... See `hint`
                 return self.hdotint[l,m][0](t) + 1j*self.hdotint[l,m][1](t)
+
+    @property
+    def dEdtsample(self):
+        '''Implement Eq. (3.8) of arXiv:0707.4654 for the linear momentum flux. Note that the modes provided by the surrogate models are actually h*(r/M) extracted as r=infinity, so the r^2 factor is already in there.'''
+
+        dEdt = 0
+        for l,m in summodes.single(self.lmax): # Use lmax+1 because sum involves terms with l-1
+
+            # Eq. 3.8
+            dEdt += (1/(16*np.pi)) * np.abs(self.hdotsamplefix(l,m))**2
+
+        return dEdt
+
+    def dEdtint(self,t):
+        '''Implement Eq. (3.8) of arXiv:0707.4654 for the linear momentum flux. Note that the modes provided by the surrogate models are actually h*(r/M) extracted as r=infinity, so the r^2 factor is already in there.'''
+
+        dEdt = 0
+        for l,m in summodes.single(self.lmax): # Use lmax+1 because sum involves terms with l-1
+
+            # Eq. 3.8
+            dEdt += (1/(16*np.pi)) * np.abs(self.hdotintfix(l,m,t))**2
+
+        return dEdt
+
+    @property
+    def Eoftsample(self):
+        if self._Eoftsample is None:
+            self._Eoftsample = np.array( [scipy.integrate.simps(self.dEdtsample[:i],self.times[:i]) for i in np.array(range(len(self.times)))+1])
+        return self._Eoftsample
+
+    @property
+    def Eoftint(self):
+        ''' Integrate the energy flux, to find the emitted energy as a function of time.'''
+        if self._Eoftint is None:
+            self._Eoftint = lambda t: scipy.integrate.odeint(lambda P,tx: self.dEdtint(tx), 0, np.append(self.times[0],t))[1:].flatten()
+        return self._Eoftint
+
+    def Eoft(self,t):
+        ''' Evaluate E(t)'''
+
+        try: len(t)
+        except: t=[t]
+
+        if not self.spline_flag and list(t)==list(self.times):
+            return self.Eoftsample
+        else:
+            return self.Eoftint(t)
+
+    @property
+    def Erad(self):
+        '''Component of the kick. Return vx vy vz; not 100% sure about the sign: is this the momentum emitted or the moentum of the recoil? Difference is just a minus sign somewhere.'''
+        if self._Erad is None:
+
+            if self.spline_flag is False:
+                if self._Eoftsample is None: # Looks like you don't need the whole profile, but only the final kick
+                    self._Erad= scipy.integrate.simps(self.dEdtsample,self.times)
+                else:
+                    self._Erad = self.Eoftsample[-1]
+            else:
+                self._Erad = self.Eoft(self.times[-1])
+
+        return self._Erad
+
+
+
 
     @property
     def dPdtsample(self):
@@ -339,6 +409,8 @@ def parseSXS(index):
             if "Radiated Linear Momentum X" in line: deltaPx = float(line.split()[5])
             if "Radiated Linear Momentum Y" in line: deltaPy = float(line.split()[5])
             if "Radiated Linear Momentum Z" in line: deltaPz = float(line.split()[5])
+            if "Radiated Energy" in line and "Newtonian" not in line : Erad = float(line.split()[3])
+
     with open(folder+"/metadata"+trailindex+".txt") as openfile:
         for line in openfile:
             if "relaxed-mass1" in line: m1=float(line.split()[2])
@@ -347,7 +419,7 @@ def parseSXS(index):
     # Total kick speed
     kick = np.sqrt( deltaPx*deltaPx + deltaPy*deltaPy + deltaPz*deltaPz )
     q=min(m1/m2,m2/m1)
-    return q, kick
+    return q, kick, Erad
 
 
 
@@ -389,49 +461,69 @@ class plots(object):
     @plottingstuff
     def nonspinning(self):
 
-        #plotting()
-
-        def fitchett_fit(q):
-            ''' Simple fitting formula for non-spinning BH from Fitchett (1983). Coefficients from arXiv:0610154'''
-            eta = q/(1+q)**2
-            Afit = 1.20e4
-            Bfit = -0.93
-            return Afit*eta**2 * (1-4*eta)**0.5 * (1+Bfit*eta)
-
-        # These are the sims with zero spins in the SXS public catalog
-        qSXS,vkSXS=zip(*[parseSXS(i) for i in [74,70,72,73,1,66,87,86,67,71,68,69,91,90,2,180,198,8,100,93,7,194,184,169]])
-        vkSXS=convert.kms(np.array(vkSXS))
-        #sys.exit()
+        fig = plt.figure(figsize=(6,6))
+        L=0.7
+        H=0.7
+        S=0.2
+        axall = [fig.add_axes([i*(S+H),0,L,H]) for i in [0,1]]
 
 
         q_vals = np.linspace(0.5,1,100)
 
-        vk_vals = []
-        t0=time.time()
-        for q in q_vals:
-            print(q)
-            vk_vals.append(convert.kms(surrkick(q=q , chi1=[0,0,0],chi2=[0,0,0],spline_flag=True).vkick))
-        print("Spline time", time.time()-t0)
 
-        vk2_vals = []
-        t0=time.time()
-        for q in q_vals:
-            print(q)
-            vk2_vals.append(convert.kms(surrkick(q=q , chi1=[0,0,0],chi2=[0,0,0],spline_flag=False).vkick))
-        print("Samples time", time.time()-t0)
+        if True:
 
-        plt.plot(q_vals,vk_vals,label='surrogate (int)')
-        plt.plot(q_vals,vk2_vals,label='surrogate (samples)')
+            vk_vals = []
+            E_vals=[]
+            t0=time.time()
+            for q in q_vals:
+                print(q)
+                sk = surrkick(q=q , chi1=[0,0,0],chi2=[0,0,0],spline_flag=True)
+                vk_vals.append(convert.kms(sk.vkick))
+                E_vals.append(sk.Erad)
 
-        plt.plot(q_vals,fitchett_fit(q_vals),label='fit by Gonzalez 2007')
+            print("Spline time", time.time()-t0)
+
+            axall[0].plot(q_vals,vk_vals,label='surrogate (int)')
+            axall[1].plot(q_vals,E_vals,label='surrogate (int)')
+
+        if True:
+            vk_vals = []
+            E_vals=[]
+            t0=time.time()
+            for q in q_vals:
+                print(q)
+                sk = surrkick(q=q , chi1=[0,0,0],chi2=[0,0,0],spline_flag=False)
+                vk_vals.append(convert.kms(sk.vkick))
+                E_vals.append(sk.Erad)
+
+            print("Samples time", time.time()-t0)
+
+            axall[0].plot(q_vals,vk_vals,label='surrogate (samples)')
+            axall[1].plot(q_vals,E_vals,label='surrogate (samples)')
+
+        if True:
+            fit=[convert.kms(precession.finalkick(0,0,0,q,0,0)) for q in q_vals]
+            axall[0].plot(q_vals,fit,label='fit by Gonzalez 2007')
+            #fit=[1-precession.finalmass(0,0,0,q,0,0) for q in q_vals]
+            #axall[1].plot(q_vals,fit,label='fit by Barausse+ 2012')
+
+        if True:
+            # These are the sims with zero spins in the SXS public catalog
+            qSXS,vkSXS,eradSXS=zip(*[parseSXS(i) for i in [74,70,72,73,1,66,87,86,67,71,68,69,91,90,2,180,198,8,100,93,7,194,184,169]])
+            vkSXS=convert.kms(np.array(vkSXS))
+            axall[0].scatter(qSXS,vkSXS,facecolor='none',edgecolor='red',label='SXS (?)')
+            axall[1].scatter(qSXS,eradSXS,facecolor='none',edgecolor='red',label='SXS (?)')
+
+        axall[0].set_xlabel("$q$")
+        axall[1].set_xlabel("$q$")
+        axall[0].set_ylabel("$v_k\;\;[\\rm km/s]$")
+        axall[1].set_ylabel("$E_{\\rm rad}$")
+
+        axall[0].legend(fontsize=15)
+        axall[1].legend(fontsize=15)
 
 
-        plt.scatter(qSXS,vkSXS,facecolor='none',edgecolor='red',label='SXS (?)')
-
-        #plt.plot(q_vals,vk_old,label='old')
-        plt.xlabel("$q$")
-        plt.ylabel("$v_k\;\;[\\rm km/s]$")
-        plt.legend()
 
 
         #plt.savefig('unequal.pdf',bbox_inches='tight')
@@ -497,7 +589,11 @@ class plots(object):
 ########################################
 if __name__ == "__main__":
     #
-    # sk=surrkick(spline_flag=True)
+    sk=surrkick()
+    #print(sk.Eoftsample)
+    #print(sk.Eoft([10,20]))
+
+
     # print(sk.vkick)
     # sk=surrkick(spline_flag=False)
     # print(sk.vkick)
@@ -509,9 +605,9 @@ if __name__ == "__main__":
     #print(sk.trajectory(sk.times))
     #print(sk.Poft(np.array([10,29])))
 
-    #plots.nonspinning()
+    plots.nonspinning()
     #plots.profiles()
-    plots.centerofmass()
+    #plots.centerofmass()
     #
     # sur=surrogate()
     # print(sur)
