@@ -50,7 +50,7 @@ class summodes(object):
 
 
 class coeffs(object):
-    ''' Coefficients of the linear momentum expression, from Eqs. (3.16-3.19) of arXiv:0707.4654. All are defined as static methods and can be called with, e.g., `coeffs.a(l,m)` withtout first defining an instance of the `coeffs` class.'''
+    ''' Coefficients of the momentum expression, from Eqs. (3.16-3.19,3.25) of arXiv:0707.4654. All are defined as static methods and can be called with, e.g., `coeffs.a(l,m)` withtout first defining an instance of the `coeffs` class.'''
 
     @staticmethod
     def a(l,m):
@@ -71,6 +71,13 @@ class coeffs(object):
     def d(l,m):
         '''Eq. (3.19) of arXiv:0707.4654'''
         return  ( 1/l ) *  ( ( (l-2) * (l+2) * (l-m) * (l+m) ) / ( (2*l-1) * (2*l+1) ))**0.5
+
+    @staticmethod
+    def f(l,m):
+        '''Eq. (3.25) of arXiv:0707.4654'''
+        return  ( l*(l+1) - m*(m+1) )**0.5
+
+
 
 class convert(object):
     ''' Convert units to other units'''
@@ -116,22 +123,35 @@ class surrkick(object):
 
         # Lazy loading, hidden variables
         self._hsample = None
+        self._lmax = None
         self._hint = None
+        self._hsamplefix = None
+        self._hintfix = None
+
         self._hdotsample = None
         self._hdotint = None
-        self._hdotintfix = None
         self._hdotsamplefix = None
-        self._lmax = None
+        self._hdotintfix = None
+
         self._Eoftint=None
         self._Eoftsample=None
         self._Eoft=None
         self._Erad=None
+
         self._Poftint=None
         self._Poftsample=None
         self._Poft=None
-        self._vkickcomp = None
-        self._vkick = None
-        self._vkickdir = None
+        self._Pradcomp = None
+        self._Prad = None
+        self._Praddir = None
+
+        self._Joftint=None
+        self._Joftsample=None
+        self._Joft=None
+        self._Jradcomp = None
+        self._Jrad = None
+        self._Jraddir = None
+
         self._trajectorysample = None
         self._trajectoryint = None
 
@@ -144,19 +164,41 @@ class surrkick(object):
         return self._hsample
 
     @property
-    def hint(self):
-        '''Interpolate modes of h. This is the very same interpolation that is done inside the surrogate.'''
-        if self._hint is None:
-            # Split complex and real part... See `hdotintfix`
-            self._hint = {k: [spline(self.sur.t_coorb,v.real),spline(self.sur.t_coorb,v.imag)] for k, v in self.hsample.items()}
-        return self._hint
-
-    @property
     def lmax(self):
         ''' Max l mode available in the surrogate model'''
         if self._lmax is None:
             self._lmax = sorted(self.hsample.keys())[-1][0]
         return self._lmax
+
+    @property
+    def hint(self):
+        '''Interpolate modes of h. This is the very same interpolation that is done inside the surrogate.'''
+        if self._hint is None:
+            # Split complex and real part... See `hintfix` and `hdotintfix`
+            self._hint = {k: [spline(self.sur.t_coorb,v.real),spline(self.sur.t_coorb,v.imag)] for k, v in self.hsample.items()}
+        return self._hint
+
+    def hsamplefix(self,l,m):
+        '''Correct `hdotsample` to return zero if either l or m are not allowed (this is how the expressions of arXiv:0707.4654 are supposed to be used).'''
+        if self._hsamplefix is None:
+            if l<2 or l>self.lmax:
+                return np.zeros(len(self.times),dtype=complex)
+            elif m<-l or m>l:
+                return np.zeros(len(self.times),dtype=complex)
+            else:
+                return self.hsample[l,m]
+
+    def hintfix(self,l,m,t):
+        '''Correct `hdot` to return zero if either l or m are not allowed (this is how the expressions of arXiv:0707.4654 are supposed to be used).'''
+        if self._hintfix is None:
+
+            if l<2 or l>self.lmax:
+                return 0j
+            elif m<-l or m>l:
+                return 0j
+            else:
+                # Put complex and real part bach together... See `hint`
+                return self.hint[l,m][0](t) + 1j*self.hint[l,m][1](t)
 
     @property
     def hdotsample(self):
@@ -257,15 +299,14 @@ class surrkick(object):
         return self._Erad
 
 
-
-
     @property
     def dPdtsample(self):
-        '''Implement Eq. (3.14-3.15) of arXiv:0707.4654 for the linear momentum flux. Note that the modes provided by the surrogate models are actually h*(r/M) extracted as r=infinity, so the r^2 factor is already in there.'''
+        '''Implement Eq. (3.14-3.15) of arXiv:0707.4654 for the linear momentum flux. Note that the modes provided by the surrogate models are actually h*(r/M) extracted as r=infinity, so the r^2 factor is already in there. '''
 
         dPpdt = 0
         dPzdt = 0
-        for l,m in summodes.single(self.lmax+1): # Use lmax+1 because sum involves terms with l-1
+
+        for l,m in summodes.single(self.lmax): # Use lmax+1 because sum involves terms with l-1
 
             # Eq. 3.14. dPpdt= dPxdt + i dPydt
             dPpdt += (1/(8*np.pi)) * self.hdotsamplefix(l,m) * ( coeffs.a(l,m) * np.conj(self.hdotsamplefix(l,m+1)) + coeffs.b(l,-m) * np.conj(self.hdotsamplefix(l-1,m+1)) - coeffs.b(l+1,m+1) * np.conj(self.hdotsamplefix(l+1,m+1)) )
@@ -284,7 +325,7 @@ class surrkick(object):
 
         dPpdt = 0
         dPzdt = 0
-        for l,m in summodes.single(self.lmax+1): # Use lmax+1 because sum involves terms with l-1
+        for l,m in summodes.single(self.lmax): # Sum involves l-1, but that term is killed by the first integral
 
             # Eq. 3.14. dPpdt= dPxdt + i dPydt
             dPpdt += (1/(8*np.pi)) * self.hdotintfix(l,m,t) * ( coeffs.a(l,m) * np.conj(self.hdotintfix(l,m+1,t)) + coeffs.b(l,-m) * np.conj(self.hdotintfix(l-1,m+1,t)) - coeffs.b(l+1,m+1) * np.conj(self.hdotintfix(l+1,m+1,t)) )
@@ -323,40 +364,155 @@ class surrkick(object):
             return self.Poftint(t)
 
     def voft(self,t):
-        return self.Poft(t)
+        ''' Velocity of the remnant is minus the emitted momentum'''
+        return -self.Poft(t)
 
     @property
-    def vkickcomp(self):
-        '''Component of the kick. Return vx vy vz; not 100% sure about the sign: is this the momentum emitted or the moentum of the recoil? Difference is just a minus sign somewhere.'''
-        if self._vkickcomp is None:
+    def Pradcomp(self):
+        '''Component of the kick: this the momentum emitted, not the recoil. Difference is just a minus.'''
+        if self._Pradcomp is None:
 
             if self.spline_flag is False:
                 if self._Poftsample is None: # Looks like you don't need the whole profile, but only the final kick
-                    self._vkickcomp= np.array([scipy.integrate.simps(component,self.times) for component in self.dPdtsample])
+                    self._Pradcomp= np.array([scipy.integrate.simps(component,self.times) for component in self.dPdtsample])
                 else:
-                    self._vkickcomp = np.array(self.Poftsample[:,-1])
+                    self._Pradcomp = np.array(self.Poftsample[:,-1])
             else:
-                self._vkickcomp = self.Poft(self.times[-1])
+                self._Pradcomp = self.Poft(self.times[-1])
 
-        return self._vkickcomp
+        return self._Pradcomp
+
+    @property
+    def vkickcomp(self):
+        '''Recoil is minus the emitted momentum.'''
+        return -self.Pradcomp
+
+    @property
+    def Prad(self):
+        '''Magnitude of the kick'''
+        if self._Prad is None:
+            self._Prad = np.linalg.norm(self.Pradcomp)
+        return self._Prad
 
     @property
     def vkick(self):
-        '''Magnitude of the kick'''
-        if self._vkick is None:
-            self._vkick = np.linalg.norm(self.vkickcomp)
-        return self._vkick
+        ''' Kick magnitude'''
+        return self.Prad
+
+    @property
+    def Praddir(self):
+        if self._Praddir is None:
+            self._Praddir = self.Pradcomp/self.Prad
+        return self._Praddir
 
     @property
     def vkickdir(self):
-        if self._vkickdir is None:
-            self._vkickdir = self.vkickcomp/self.vkick
-        return self._vkickdir
+        '''Kick direction (unit vector)'''
+        return -self.Praddir
+
+    @property
+    def dJdtsample(self):
+        '''Implement Eq. (3.22-3.24) of arXiv:0707.4654 for the angular momentum flux. Note that the modes provided by the surrogate models are actually h*(r/M) extracted as r=infinity, so the r^2 factor is already in there. You also don't need the -i factor in front, because that paper uses the convention Im(a+ib)=ib, while Im(a+ib)=b in python'''
+
+        dJxdt = 0
+        dJydt = 0
+        dJzdt = 0
+
+        for l,m in summodes.single(self.lmax+1): # Use lmax+1 because sum involves terms with l-1
+
+            # Eq. 3.22
+            dJxdt += (1/(32*np.pi)) * self.hsamplefix(l,m) * ( coeffs.f(l,m) * np.conj(self.hdotsamplefix(l,m+1)) + coeffs.f(l,-m) * np.conj(self.hdotsamplefix(l,m-1)) )
+            # Eq. 3.23
+            dJydt += (-1/(32*np.pi)) * self.hsamplefix(l,m) * ( coeffs.f(l,m) * np.conj(self.hdotsamplefix(l,m+1)) - coeffs.f(l,-m) * np.conj(self.hdotsamplefix(l,m-1)) )
+            # Eq. 3.24
+            dJzdt += (1/(16*np.pi)) * m * self.hsamplefix(l,m) * np.conj(self.hdotsamplefix(l,m))
+
+        dJxdt=dJxdt.imag
+        dJydt=dJydt.real
+        dJzdt=dJzdt.imag
+
+        return dJxdt,dJydt,dJzdt
+
+
+    def dJdtint(self,t):
+        '''Implement Eq. (3.14-3.15) of arXiv:0707.4654 for the linear momentum flux. Note that the modes provided by the surrogate models are actually h*(r/M) extracted as r=infinity, so the r^2 factor is already in there.'''
+        dJxdt = 0
+        dJydt = 0
+        dJzdt = 0
+
+        for l,m in summodes.single(self.lmax+1): # Use lmax+1 because sum involves terms with l-1
+
+            # Eq. 3.22
+            dJxdt += (1/(32*np.pi)) * self.hintfix(l,m,t) * ( coeffs.f(l,m) * np.conj(self.hdotintfix(l,m+1,t)) + coeffs.f(l,-m) * np.conj(self.hdotintfix(l,m-1,t)) )
+            # Eq. 3.23
+            dJydt += (-1/(32*np.pi)) * self.hintfix(l,m,t) * ( coeffs.f(l,m) * np.conj(self.hdotintfix(l,m+1,t)) - coeffs.f(l,-m) * np.conj(self.hdotintfix(l,m-1,t)) )
+            # Eq. 3.24
+            dJzdt += (1/(16*np.pi)) * m * self.hintfix(l,m,t) * np.conj(self.hdotintfix(l,m,t))
+
+        dJxdt=dJxdt.imag
+        dJydt=dJydt.real
+        dJzdt=dJzdt.imag
+
+        return dJxdt,dJydt,dJzdt
+
+    @property
+    def Joftsample(self):
+        if self._Joftsample is None:
+            self._Joftsample = np.array([ [scipy.integrate.simps(component[:i],self.times[:i]) for i in np.array(range(len(self.times)))+1] for component in self.dJdtsample])
+        return self._Joftsample
+
+    @property
+    def Joftint(self):
+        ''' Integrate the angular momentum flux, to find the linear momentum (or velocity since it's in mass units) as a function of time.'''
+        if self._Joftint is None:
+            self._Joftint = lambda t: np.transpose(scipy.integrate.odeint(lambda J,tx: self.dJdtint(tx),  [0,0,0], np.append(self.times[0],t))[1:])
+        return self._Joftint
+
+    def Joft(self,t):
+        ''' Evaluate J(t)'''
+
+        try: len(t)
+        except: t=[t]
+
+        if not self.spline_flag and list(t)==list(self.times):
+            return self.Joftsample
+        else:
+            return self.Joftint(t)
+
+    @property
+    def Jradcomp(self):
+        '''Component of the kick: this the momentum emitted, not the recoil. Difference is just a minus.'''
+        if self._Jradcomp is None:
+
+            if self.spline_flag is False:
+                if self._Joftsample is None: # Looks like you don't need the whole profile, but only the final kick
+                    self._Jradcomp= np.array([scipy.integrate.simps(component,self.times) for component in self.dJdtsample])
+                else:
+                    self._Jradcomp = np.array(self.Joftsample[:,-1])
+            else:
+                self._Jradcomp = self.Joft(self.times[-1])
+
+        return self._Jradcomp
+
+    @property
+    def Jrad(self):
+        '''Magnitude of the kick'''
+        if self._Jrad is None:
+            self._Jrad = np.linalg.norm(self.Jradcomp)
+        return self._Jrad
+
+    @property
+    def Jraddir(self):
+        if self._Jraddir is None:
+            self._Jraddir = self.Jradcomp/self.Jrad
+        return self._Jraddir
+
 
     @property
     def trajectorysample(self):
+        ''' Minus because I want to inegrate the BH motion, not the linear momentum in GWs'''
         if self._trajectorysample is None:
-            self._trajectorysample = np.array([ [scipy.integrate.simps(component[:i],self.times[:i]) for i in np.array(range(len(self.times)))+1] for component in self.Poftsample])
+            self._trajectorysample = -np.array([ [scipy.integrate.simps(component[:i],self.times[:i]) for i in np.array(range(len(self.times)))+1] for component in self.Poftsample])
 
         return self._trajectorysample
 
@@ -410,16 +566,20 @@ def parseSXS(index):
             if "Radiated Linear Momentum Y" in line: deltaPy = float(line.split()[5])
             if "Radiated Linear Momentum Z" in line: deltaPz = float(line.split()[5])
             if "Radiated Energy" in line and "Newtonian" not in line : Erad = float(line.split()[3])
+            if "Radiated Angular Momentum X" in line: deltaJx = float(line.split()[5])
+            if "Radiated Angular Momentum Y" in line: deltaJy = float(line.split()[5])
+            if "Radiated Angular Momentum Z" in line: deltaJz = float(line.split()[5])
 
     with open(folder+"/metadata"+trailindex+".txt") as openfile:
         for line in openfile:
             if "relaxed-mass1" in line: m1=float(line.split()[2])
             if "relaxed-mass2" in line: m2=float(line.split()[2])
 
-    # Total kick speed
-    kick = np.sqrt( deltaPx*deltaPx + deltaPy*deltaPy + deltaPz*deltaPz )
+    Prad = np.sqrt( deltaPx*deltaPx + deltaPy*deltaPy + deltaPz*deltaPz )
+    Jrad = np.sqrt( deltaJx*deltaJx + deltaJy*deltaJy + deltaJz*deltaJz )
     q=min(m1/m2,m2/m1)
-    return q, kick, Erad
+
+    return q, [Erad, Prad, Jrad]
 
 
 
@@ -465,60 +625,95 @@ class plots(object):
         L=0.7
         H=0.7
         S=0.2
-        axall = [fig.add_axes([i*(S+H),0,L,H]) for i in [0,1]]
+        axall = [fig.add_axes([i*(S+H),0,L,H]) for i in [0,1,2]]
 
 
-        q_vals = np.linspace(0.5,1,100)
+        q_vals = np.linspace(0.5,1,3)
 
 
         if True:
-
-            vk_vals = []
-            E_vals=[]
+            data=[]
             t0=time.time()
             for q in q_vals:
                 print(q)
                 sk = surrkick(q=q , chi1=[0,0,0],chi2=[0,0,0],spline_flag=True)
-                vk_vals.append(convert.kms(sk.vkick))
-                E_vals.append(sk.Erad)
+                data.append([sk.Erad,sk.Prad,sk.Jrad])
 
             print("Spline time", time.time()-t0)
 
-            axall[0].plot(q_vals,vk_vals,label='surrogate (int)')
-            axall[1].plot(q_vals,E_vals,label='surrogate (int)')
+            for ax, d in zip(axall,zip(*data)):
+                ax.plot(q_vals,d,label='surrogate (int)')
+
 
         if True:
-            vk_vals = []
-            E_vals=[]
+            data=[]
             t0=time.time()
             for q in q_vals:
                 print(q)
                 sk = surrkick(q=q , chi1=[0,0,0],chi2=[0,0,0],spline_flag=False)
-                vk_vals.append(convert.kms(sk.vkick))
-                E_vals.append(sk.Erad)
+                data.append([sk.Erad,sk.Prad,sk.Jrad])
 
             print("Samples time", time.time()-t0)
 
-            axall[0].plot(q_vals,vk_vals,label='surrogate (samples)')
-            axall[1].plot(q_vals,E_vals,label='surrogate (samples)')
+            for ax, d in zip(axall,zip(*data)):
+                ax.plot(q_vals,d,label='surrogate (samples)')
 
         if True:
-            fit=[convert.kms(precession.finalkick(0,0,0,q,0,0)) for q in q_vals]
-            axall[0].plot(q_vals,fit,label='fit by Gonzalez 2007')
-            #fit=[1-precession.finalmass(0,0,0,q,0,0) for q in q_vals]
-            #axall[1].plot(q_vals,fit,label='fit by Barausse+ 2012')
+            fit=[precession.finalkick(0,0,0,q,0,0) for q in q_vals]
+            axall[1].plot(q_vals,fit,label='fit by Gonzalez 2007')
 
         if True:
             # These are the sims with zero spins in the SXS public catalog
-            qSXS,vkSXS,eradSXS=zip(*[parseSXS(i) for i in [74,70,72,73,1,66,87,86,67,71,68,69,91,90,2,180,198,8,100,93,7,194,184,169]])
-            vkSXS=convert.kms(np.array(vkSXS))
-            axall[0].scatter(qSXS,vkSXS,facecolor='none',edgecolor='red',label='SXS (?)')
-            axall[1].scatter(qSXS,eradSXS,facecolor='none',edgecolor='red',label='SXS (?)')
+            q_vals, data = zip(*[parseSXS(i) for i in [74,70,72,73,1,66,87,86,67,71,68,69,91,90,2,180,198,8,100,93,7,194,184,169]])
+
+
+            for ax, d in zip(axall,zip(*data)):
+                ax.scatter(q_vals,d,facecolor='none',edgecolor='red',label='surrogate (int)')
+
+        #axall[0].set_xlabel("$q$")
+        #axall[1].set_xlabel("$q$")
+        #axall[0].set_ylabel("$v_k\;\;[\\rm km/s]$")
+        #axall[1].set_ylabel("$E_{\\rm rad}$")
+
+        #axall[0].legend(fontsize=15)
+        #axall[1].legend(fontsize=15)
+
+
+
+    @classmethod
+    @plottingstuff
+    def residuals(self):
+
+        fig = plt.figure(figsize=(6,6))
+        L=0.7
+        H=0.7
+        S=0.25
+        axall = [fig.add_axes([i*(S+H),0,L,H]) for i in [0,1]]
+
+        q_vals = np.linspace(0.5,1,100)
+
+        vk_vals = []
+        E_vals=[]
+        t0=time.time()
+        for q in q_vals:
+            print(q)
+            sk1 = surrkick(q=q , chi1=[0,0,0],chi2=[0,0,0],spline_flag=True)
+            sk2 = surrkick(q=q , chi1=[0,0,0],chi2=[0,0,0],spline_flag=False)
+
+            vk_vals.append(np.abs(sk1.vkick-sk2.vkick)*2/(sk1.vkick+sk2.vkick))
+            E_vals.append(np.abs(sk1.Erad-sk2.Erad)*2/(sk1.Erad+sk2.Erad))
+
+
+        axall[0].plot(q_vals,vk_vals)
+        axall[1].plot(q_vals,E_vals)
+
+        axall[0].set_ylim(0,0.006)
+        axall[1].set_ylim(0,0.006)
 
         axall[0].set_xlabel("$q$")
         axall[1].set_xlabel("$q$")
-        axall[0].set_ylabel("$v_k\;\;[\\rm km/s]$")
-        axall[1].set_ylabel("$E_{\\rm rad}$")
+        axall[0].set_ylabel("$\\Delta v_k/v_k$")
+        axall[1].set_ylabel("$\\Delta E_{\\rm rad}/E_{\\rm rad}$")
 
         axall[0].legend(fontsize=15)
         axall[1].legend(fontsize=15)
@@ -527,6 +722,9 @@ class plots(object):
 
 
         #plt.savefig('unequal.pdf',bbox_inches='tight')
+
+
+
 
     @classmethod
     @plottingstuff
@@ -569,7 +767,7 @@ class plots(object):
         sk = surrkick(q=q , chi1=[0,0,0],chi2=[0,0,0])
 
         x0,y0,z0=np.transpose(sk.trajectory(sk.times))[sk.times==min(abs(sk.times))][0]
-        x,y,z=np.transpose(np.transpose(sk.trajectory(sk.times))[np.logical_and(sk.times>-1000,sk.times<20)])
+        x,y,z=np.transpose(np.transpose(sk.trajectory(sk.times))[np.logical_and(sk.times>-1000,sk.times<19)])
         ax.plot(x-x0,y-y0,z-z0)
 
         ax.scatter(0,0,0,marker='.',s=40,alpha=0.5)
@@ -579,18 +777,23 @@ class plots(object):
             i = np.abs(sk.times - t).argmin()
             v=np.linalg.norm([vx[i],vy[i],vz[i]])
             arrowsize=1e-4
-            ax.quiver(x[i]-x0,y[i]-y0,z[i]-z0,vx[i]*arrowsize/v,vy[i]*arrowsize/v,vz[i]*arrowsize/v,length=0.001,arrow_length_ratio=500,alpha=0.5)
+            ax.quiver(x[i]-x0,y[i]-y0,z[i]-z0,vx[i]*arrowsize/v,vy[i]*arrowsize/v,vz[i]*arrowsize/v,length=0.0001,arrow_length_ratio=9000,alpha=0.5)
 
         ax.set_xlim(-0.001,0.001)
         ax.set_ylim(-0.001,0.001)
-        ax.set_zlim(-0.0001,0.0003)
+        ax.set_zlim(-0.001,0.0001)
+
+        ax.set_xticklabels(ax.get_xticks(), fontsize=13)
+        ax.set_yticklabels(ax.get_yticks(), fontsize=13)
+        ax.set_zticklabels(ax.get_zticks(), fontsize=13)
+
 
 
 ########################################
 if __name__ == "__main__":
     #
-    sk=surrkick()
-    #print(sk.Eoftsample)
+    #sk=surrkick(q=0.6)
+    #print(sk.vkick)
     #print(sk.Eoft([10,20]))
 
 
@@ -605,9 +808,10 @@ if __name__ == "__main__":
     #print(sk.trajectory(sk.times))
     #print(sk.Poft(np.array([10,29])))
 
-    plots.nonspinning()
+    #plots.nonspinning()
+    #plots.residuals()
     #plots.profiles()
-    #plots.centerofmass()
+    plots.centerofmass()
     #
     # sur=surrogate()
     # print(sur)
