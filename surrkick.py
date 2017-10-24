@@ -8,7 +8,6 @@ import numpy as np
 import scipy.integrate
 from scipy.interpolate import InterpolatedUnivariateSpline as spline
 import NRSur7dq2
-#sur = NRSur7dq2.NRSurrogate7dq2('NRSur7dq2.h5')
 from singleton_decorator import singleton
 import precession
 
@@ -99,6 +98,169 @@ class surrogate(object):
         return self._sur
 
 
+class bhbin(object):
+    ''' Super class to contain info for a single binary evolution'''
+
+    def __init__(self,q=1,chi1=[0,0,0],chi2=[0,0,0]):
+        self.sur=surrogate().sur() # Initialize the surrogate. Note it's a singleton
+        self.q = max(q,1/q) # Make sure q>1 in this class, that's what the surrogate wants
+        self.chi1 = np.array(chi1) # chi1 is the spin of the larger BH
+        self.chi2 = np.array(chi2) # chi2 is the spin of the smaller BH
+        self.times = self.sur.t_coorb # Short name for the time nodes
+
+
+        self._hsample = None
+        self._hdotsample = None
+        self._lmax = None
+        self._dEdt = None
+        self._Eoft = None
+        self._Erad = None
+        self._dPdt = None
+        self._Poft = None
+        self._Prad = None
+        self._dJdt = None
+        self._Joft = None
+        self._Jrad = None
+
+    @property
+    def hsample(self):
+        '''Extract modes of strain h from the surrogate, evaluated at the surrogate time nodes.'''
+        if self._hsample is None:
+            self._hsample = self.sur(self.q, self.chi1, self.chi2,t=self.times) # Returns a python dictionary with keys (l,m)
+        return self._hsample
+
+    @property
+    def lmax(self):
+        ''' Max l mode available in the surrogate model'''
+        if self._lmax is None:
+            self._lmax = sorted(self.hsample.keys())[-1][0]
+        return self._lmax
+
+    def h(self,l,m):
+        '''Correct the strain values to return zero if either l or m are not allowed (this is how the expressions of arXiv:0707.4654 are supposed to be used).'''
+        if l<2 or l>self.lmax:
+            return np.zeros(len(self.times),dtype=complex)
+        elif m<-l or m>l:
+            return np.zeros(len(self.times),dtype=complex)
+        else:
+            return self.hsample[l,m]
+
+    @property
+    def hdotsample(self):
+        '''Derivative of the strain at the time nodes. First interpolate the h with a spline, derivate the spline and evaluate that derivative at the nodes.'''
+        if self._hdotsample is None:
+
+            self._hdotsample =  {k: spline(self.times,v.real).derivative()(self.times)+1j*spline(self.times,v.imag).derivative()(self.times) for k, v in self.hsample.items()}
+
+        return self._hdotsample
+
+    def hdot(self,l,m):
+        '''Correct the strain derivative values to return zero if either l or m are not allowed (this is how the expressions of arXiv:0707.4654 are supposed to be used).'''
+        if l<2 or l>self.lmax:
+            return np.zeros(len(self.times),dtype=complex)
+        elif m<-l or m>l:
+            return np.zeros(len(self.times),dtype=complex)
+        else:
+            return self.hdotsample[l,m]
+
+
+    @property
+    def dEdt(self):
+        '''Implement Eq. (3.8) of arXiv:0707.4654 for the linear momentum flux. Note that the modes provided by the surrogate models are actually h*(r/M) extracted as r=infinity, so the r^2 factor is already in there.'''
+
+        if self._dEdt is None:
+            dEdt = 0
+            for l,m in summodes.single(self.lmax):
+
+                # Eq. 3.8
+                dEdt += (1/(16*np.pi)) * np.abs(self.hdot(l,m))**2
+
+            self._dEdt = dEdt
+
+        return self._dEdt
+
+    @property
+    def Eoft(self):
+        if self._Eoft is None:
+            # The integral of a spline is called antiderivative (mmmh...)
+
+            origin=0
+            self._Eoft = spline(self.times,self.dEdt).antiderivative()(self.times)-origin
+        return self._Eoft
+
+    @property
+    def Erad(self):
+        ''' Total energy momentum radiated'''
+        if self._Erad is None:
+            self._Erad = self.Eoft[-1]
+        return self._Erad
+
+    @property
+    def dPdt(self):
+        '''Implement Eq. (3.14-3.15) of arXiv:0707.4654 for the linear momentum flux. Note that the modes provided by the surrogate models are actually h*(r/M) extracted as r=infinity, so the r^2 factor is already in there. '''
+
+        if self._dPdt is None:
+
+            dPpdt = 0
+            dPzdt = 0
+
+            for l,m in summodes.single(self.lmax):
+
+                # Eq. 3.14. dPpdt= dPxdt + i dPydt
+                dPpdt += (1/(8*np.pi)) * self.hdot(l,m) * ( coeffs.a(l,m) * np.conj(self.hdot(l,m+1)) + coeffs.b(l,-m) * np.conj(self.hdot(l-1,m+1)) - coeffs.b(l+1,m+1) * np.conj(self.hdot(l+1,m+1)) )
+                # Eq. 3.15
+                dPzdt += (1/(16*np.pi)) * self.hdot(l,m) * ( coeffs.c(l,m) * np.conj(self.hdot(l,m)) + coeffs.d(l,m) * np.conj(self.hdot(l-1,m)) + coeffs.d(l+1,m) * np.conj(self.hdot(l+1,m)) )
+
+            dPxdt=dPpdt.real # From the definition of Pplus
+            dPydt=dPpdt.imag # From the definition of Pplus
+            assert max(dPzdt.imag)<1e-6 # Check...
+            dPzdt=dPzdt.real # Kill the imaginary part
+
+
+            self._dPdt = np.transpose([dPxdt,dPydt,dPzdt])
+
+        return self._dPdt
+
+    @property
+    def Poft(self):
+        if self._Poft is None:
+            # The integral of a spline is called antiderivative (mmmh...)
+
+            #print("here")
+            #origin = [np.average(x) for x in np.transpose(self.dvdt[0:100])]
+            origin=[0,0,0]
+            #origin = np.array([spline(self.times,v).antiderivative()(self.times[30])  for v in np.transpose(self.dvdt)])
+            self._Poft = np.transpose([spline(self.times,v).antiderivative()(self.times)-o  for v,o in zip(np.transpose(self.dPdt),origin)])
+            #print(origin)
+            #print(self._v[-1])
+            #print("")
+            #sys.exit()
+        return self._Poft
+
+    @property
+    def Prad(self):
+        ''' Total linear momentum radiated'''
+        if self._Prad is None:
+            self._Prad = np.linalg.norm(self.Poft[-1])
+        return self._Prad
+
+    @property
+    def kick(self):
+        ''' Just an alias '''
+        return self.Prad
+
+
+
+
+#
+#
+# class kick(bhbinary):
+#
+#     def __init__(self,*args, **kwargs):
+#         super(kick, self).__init__(*args, **kwargs)
+#
+#
+
 class surrkick(object):
     '''
     Main class to compute kicks from surrogate models
@@ -111,8 +273,8 @@ class surrkick(object):
 
         self.sur=surrogate().sur() # Initialize the surrogate. Note it's a singleton
         self.q = max(q,1/q) # Make sure q>1 in this class, that's what the surrogate wants
-        self.chi1 = np.array(chi1)
-        self.chi2 = np.array(chi2)
+        self.chi1 = np.array(chi1) # chi1 is the spin of the larger BH
+        self.chi2 = np.array(chi2) # chi2 is the spin of the smaller BH
         # If times are specified use them, if not take the time nodes of the surrogate model
         if times==None:
             self.times = self.sur.t_coorb
@@ -616,6 +778,50 @@ class plots(object):
 
         return wrapper
 
+    @classmethod
+    @plottingstuff
+    def dpdt(self):
+
+        fig = plt.figure(figsize=(6,6))
+        ax=fig.add_axes([0,0,1,1])
+        ax2=fig.add_axes([1.2,0,1,1])
+
+        sk=bhbin()
+        start=len(sk.times)-600
+        end=len(sk.times)
+        ax.plot(sk.times[start:end],sk.dvdt[start:end,0])
+        ax.plot(sk.times[start:end],sk.dvdt[start:end,1])
+        ax.plot(sk.times[start:end],sk.dvdt[start:end,2])
+        ax2.plot(sk.times[start:end],sk.v[start:end,0])
+        ax2.plot(sk.times[start:end],sk.v[start:end,1])
+        ax2.plot(sk.times[start:end],sk.v[start:end,2])
+
+
+
+
+    @classmethod
+    @plottingstuff
+    def compare(self):
+        fig = plt.figure(figsize=(6,6))
+        ax=fig.add_axes([0,0,1,1])
+        q_vals = np.linspace(0.5,1,5)
+
+        data1=[]
+        for q in q_vals:
+            print(q)
+            sk = surrkick(q=q , chi1=[0,0,0],chi2=[0,0,0],spline_flag=True)
+            data1.append(sk.Prad)
+        print(data1)
+        data2=[]
+        for q in q_vals:
+            print(q)
+            k = bhbin(q=q)
+            data2.append(k.Prad)
+
+        ax.plot(q_vals,np.array(data1)-np.array(data2))
+        #ax.plot(q_vals,data1)
+        #ax.plot(q_vals,data2)
+
 
     @classmethod
     @plottingstuff
@@ -628,37 +834,24 @@ class plots(object):
         axall = [fig.add_axes([i*(S+H),0,L,H]) for i in [0,1,2]]
 
 
-        q_vals = np.linspace(0.5,1,3)
-
-
-        if True:
-            data=[]
-            t0=time.time()
-            for q in q_vals:
-                print(q)
-                sk = surrkick(q=q , chi1=[0,0,0],chi2=[0,0,0],spline_flag=True)
-                data.append([sk.Erad,sk.Prad,sk.Jrad])
-
-            print("Spline time", time.time()-t0)
-
-            for ax, d in zip(axall,zip(*data)):
-                ax.plot(q_vals,d,label='surrogate (int)')
-
+        q_vals = np.linspace(0.5,1,100)
 
         if True:
             data=[]
             t0=time.time()
             for q in q_vals:
                 print(q)
-                sk = surrkick(q=q , chi1=[0,0,0],chi2=[0,0,0],spline_flag=False)
+                sk = bhbin(q=q)
+                sk.Erad=0
+                sk.Jrad=0
                 data.append([sk.Erad,sk.Prad,sk.Jrad])
 
-            print("Samples time", time.time()-t0)
+            print("Time", time.time()-t0)
 
             for ax, d in zip(axall,zip(*data)):
                 ax.plot(q_vals,d,label='surrogate (samples)')
 
-        if True:
+        if False:
             fit=[precession.finalkick(0,0,0,q,0,0) for q in q_vals]
             axall[1].plot(q_vals,fit,label='fit by Gonzalez 2007')
 
@@ -796,10 +989,12 @@ if __name__ == "__main__":
     #print(sk.vkick)
     #print(sk.Eoft([10,20]))
 
-
-    # print(sk.vkick)
-    # sk=surrkick(spline_flag=False)
-    # print(sk.vkick)
+    #k=bhbin(q=0.7)
+    #print(k.hdotsample.keys())
+    #print(k.hsample[2,2][-1])
+    #print(k.kick)
+    #sk=surrkick(q=0.7,spline_flag=False)
+    #print(sk.vkick)
     #
     #sk=surrkick(q=0.8,spline_flag=False)
     #print(sk.trajectory(sk.times))
@@ -808,10 +1003,19 @@ if __name__ == "__main__":
     #print(sk.trajectory(sk.times))
     #print(sk.Poft(np.array([10,29])))
 
+    #k=bhbin()
+    #print([max(x) for x in np.transpose(k.dvdt)])
+
+    #print(k.v[-1])
+    #print(k.kick)
+
+
+    plots.compare()
+    #plots.dpdt()
     #plots.nonspinning()
     #plots.residuals()
     #plots.profiles()
-    plots.centerofmass()
+    #plots.centerofmass()
     #
     # sur=surrogate()
     # print(sur)
