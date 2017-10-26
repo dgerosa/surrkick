@@ -6,6 +6,7 @@ import os
 import time
 import numpy as np
 import scipy.integrate
+import scipy.optimize
 from scipy.interpolate import InterpolatedUnivariateSpline as spline
 import NRSur7dq2
 from singleton_decorator import singleton
@@ -86,6 +87,40 @@ class convert(object):
         '''Convert a velocity from natural units c=1 to km/s. '''
         return x * 299792.458
 
+    @staticmethod
+    def anglestocoords(chi1mag,chi2mag,theta1,theta2,deltaphi,phi1):
+
+        assert theta1>=0 and theta1<=np.pi and theta2>=0 and theta2<=np.pi
+        phi2 = deltaphi+phi1
+        chi1 = chi1mag*np.array([np.sin(theta1)*np.cos(phi1), np.sin(theta1)*np.sin(phi1), np.cos(theta1)])
+        chi2 = chi2mag*np.array([np.sin(theta2)*np.cos(phi2), np.sin(theta2)*np.sin(phi2), np.cos(theta2)])
+        return chi1,chi2
+
+    @staticmethod
+    def coordstoangles(chi1,chi2):
+
+        chi1mag = np.linalg.norm(chi1)
+        chi2mag = np.linalg.norm(chi2)
+
+        theta1 = np.arccos(chi1[2]/chi1mag)
+        theta2 = np.arccos(chi2[2]/chi2mag)
+        #print(theta1,chi1[0],chi1mag,chi1[0]/(chi1mag*np.sin(theta1)))
+        if chi1[1]==0:
+            phi1 = np.sign(chi1[0])*np.arccos(chi1[0]/(chi1mag*np.sin(theta1)))
+        else:
+            phi1 = np.sign(chi1[1])*np.arccos(chi1[0]/(chi1mag*np.sin(theta1)))
+        if chi2[1]==0:
+            phi2 = np.sign(chi2[0])*np.arccos(chi2[0]/(chi2mag*np.sin(theta2)))
+        else:
+            phi2 = np.sign(chi2[1])*np.arccos(chi2[0]/(chi2mag*np.sin(theta2)))
+        deltaphi = phi2 - phi1
+
+        return chi1mag,chi2mag,theta1,theta2,deltaphi,phi1
+
+
+
+
+
 @singleton
 class surrogate(object):
     ''' Initialize the surrogate using a singleton. This means there can only be one instance of this class (makes sense: there's only one surrogate model).'''
@@ -121,6 +156,7 @@ class bhbin(object):
         self._dJdt = None
         self._Joft = None
         self._Jrad = None
+        self._xoft = None
 
     @property
     def hsample(self):
@@ -245,468 +281,95 @@ class bhbin(object):
         return self._Prad
 
     @property
-    def kick(self):
-        ''' Just an alias '''
-        return self.Prad
-
-
-
-
-#
-#
-# class kick(bhbinary):
-#
-#     def __init__(self,*args, **kwargs):
-#         super(kick, self).__init__(*args, **kwargs)
-#
-#
-
-class surrkick(object):
-    '''
-    Main class to compute kicks from surrogate models
-    '''
-
-    def __init__(self,q=1,chi1=[0,0,0],chi2=[0,0,0],times=None,spline_flag=False):
-        '''
-        Initialize the surrogate and a bunch of lazy-loading variables
-        '''
-
-        self.sur=surrogate().sur() # Initialize the surrogate. Note it's a singleton
-        self.q = max(q,1/q) # Make sure q>1 in this class, that's what the surrogate wants
-        self.chi1 = np.array(chi1) # chi1 is the spin of the larger BH
-        self.chi2 = np.array(chi2) # chi2 is the spin of the smaller BH
-        # If times are specified use them, if not take the time nodes of the surrogate model
-        if times==None:
-            self.times = self.sur.t_coorb
-        else:
-            self.times = times
-
-        self.spline_flag=spline_flag
-
-        # Lazy loading, hidden variables
-        self._hsample = None
-        self._lmax = None
-        self._hint = None
-        self._hsamplefix = None
-        self._hintfix = None
-
-        self._hdotsample = None
-        self._hdotint = None
-        self._hdotsamplefix = None
-        self._hdotintfix = None
-
-        self._Eoftint=None
-        self._Eoftsample=None
-        self._Eoft=None
-        self._Erad=None
-
-        self._Poftint=None
-        self._Poftsample=None
-        self._Poft=None
-        self._Pradcomp = None
-        self._Prad = None
-        self._Praddir = None
-
-        self._Joftint=None
-        self._Joftsample=None
-        self._Joft=None
-        self._Jradcomp = None
-        self._Jrad = None
-        self._Jraddir = None
-
-        self._trajectorysample = None
-        self._trajectoryint = None
-
-
-    @property
-    def hsample(self):
-        '''Extract modes of strain h from the surrogate, evaluated at the surrogate time nodes.'''
-        if self._hsample is None:
-            self._hsample = self.sur(self.q, self.chi1, self.chi2,t=self.sur.t_coorb) # Returns a python dictionary with keys (l,m)
-        return self._hsample
-
-    @property
-    def lmax(self):
-        ''' Max l mode available in the surrogate model'''
-        if self._lmax is None:
-            self._lmax = sorted(self.hsample.keys())[-1][0]
-        return self._lmax
-
-    @property
-    def hint(self):
-        '''Interpolate modes of h. This is the very same interpolation that is done inside the surrogate.'''
-        if self._hint is None:
-            # Split complex and real part... See `hintfix` and `hdotintfix`
-            self._hint = {k: [spline(self.sur.t_coorb,v.real),spline(self.sur.t_coorb,v.imag)] for k, v in self.hsample.items()}
-        return self._hint
-
-    def hsamplefix(self,l,m):
-        '''Correct `hdotsample` to return zero if either l or m are not allowed (this is how the expressions of arXiv:0707.4654 are supposed to be used).'''
-        if self._hsamplefix is None:
-            if l<2 or l>self.lmax:
-                return np.zeros(len(self.times),dtype=complex)
-            elif m<-l or m>l:
-                return np.zeros(len(self.times),dtype=complex)
-            else:
-                return self.hsample[l,m]
-
-    def hintfix(self,l,m,t):
-        '''Correct `hdot` to return zero if either l or m are not allowed (this is how the expressions of arXiv:0707.4654 are supposed to be used).'''
-        if self._hintfix is None:
-
-            if l<2 or l>self.lmax:
-                return 0j
-            elif m<-l or m>l:
-                return 0j
-            else:
-                # Put complex and real part bach together... See `hint`
-                return self.hint[l,m][0](t) + 1j*self.hint[l,m][1](t)
-
-    @property
-    def hdotsample(self):
-        '''Finite differencing derivative of the h modes, evaluated at the surrogate time nodes.'''
-        if self._hdotsample is None:
-            self._hdotsample = {k: np.gradient(v,edge_order=2)/np.gradient(self.times,edge_order=2) for k, v in self.hsample.items()}
-        return self._hdotsample
-
-    @property
-    def hdotint(self):
-        '''Interpolate dh/dt, first derivative of the strain. Return zero if either l or m are not allowed (this is how the expressions of arXiv:0707.4654 are supposed to be used).'''
-        if self._hdotint is None:
-            self._hdotint = {k: [x.derivative() for x in v] for k, v in self.hint.items()}
-        return self._hdotint
-
-    def hdotsamplefix(self,l,m):
-        '''Correct `hdotsample` to return zero if either l or m are not allowed (this is how the expressions of arXiv:0707.4654 are supposed to be used).'''
-        if self._hdotsamplefix is None:
-            if l<2 or l>self.lmax:
-                return np.zeros(len(self.times),dtype=complex)
-            elif m<-l or m>l:
-                return np.zeros(len(self.times),dtype=complex)
-            else:
-                return self.hdotsample[l,m]
-
-    def hdotintfix(self,l,m,t):
-        '''Correct `hdot` to return zero if either l or m are not allowed (this is how the expressions of arXiv:0707.4654 are supposed to be used).'''
-        if self._hdotintfix is None:
-
-            if l<2 or l>self.lmax:
-                return 0j
-            elif m<-l or m>l:
-                return 0j
-            else:
-                # Put complex and real part bach together... See `hint`
-                return self.hdotint[l,m][0](t) + 1j*self.hdotint[l,m][1](t)
-
-    @property
-    def dEdtsample(self):
-        '''Implement Eq. (3.8) of arXiv:0707.4654 for the linear momentum flux. Note that the modes provided by the surrogate models are actually h*(r/M) extracted as r=infinity, so the r^2 factor is already in there.'''
-
-        dEdt = 0
-        for l,m in summodes.single(self.lmax): # Use lmax+1 because sum involves terms with l-1
-
-            # Eq. 3.8
-            dEdt += (1/(16*np.pi)) * np.abs(self.hdotsamplefix(l,m))**2
-
-        return dEdt
-
-    def dEdtint(self,t):
-        '''Implement Eq. (3.8) of arXiv:0707.4654 for the linear momentum flux. Note that the modes provided by the surrogate models are actually h*(r/M) extracted as r=infinity, so the r^2 factor is already in there.'''
-
-        dEdt = 0
-        for l,m in summodes.single(self.lmax): # Use lmax+1 because sum involves terms with l-1
-
-            # Eq. 3.8
-            dEdt += (1/(16*np.pi)) * np.abs(self.hdotintfix(l,m,t))**2
-
-        return dEdt
-
-    @property
-    def Eoftsample(self):
-        if self._Eoftsample is None:
-            self._Eoftsample = np.array( [scipy.integrate.simps(self.dEdtsample[:i],self.times[:i]) for i in np.array(range(len(self.times)))+1])
-        return self._Eoftsample
-
-    @property
-    def Eoftint(self):
-        ''' Integrate the energy flux, to find the emitted energy as a function of time.'''
-        if self._Eoftint is None:
-            self._Eoftint = lambda t: scipy.integrate.odeint(lambda P,tx: self.dEdtint(tx), 0, np.append(self.times[0],t))[1:].flatten()
-        return self._Eoftint
-
-    def Eoft(self,t):
-        ''' Evaluate E(t)'''
-
-        try: len(t)
-        except: t=[t]
-
-        if not self.spline_flag and list(t)==list(self.times):
-            return self.Eoftsample
-        else:
-            return self.Eoftint(t)
-
-    @property
-    def Erad(self):
-        '''Component of the kick. Return vx vy vz; not 100% sure about the sign: is this the momentum emitted or the moentum of the recoil? Difference is just a minus sign somewhere.'''
-        if self._Erad is None:
-
-            if self.spline_flag is False:
-                if self._Eoftsample is None: # Looks like you don't need the whole profile, but only the final kick
-                    self._Erad= scipy.integrate.simps(self.dEdtsample,self.times)
-                else:
-                    self._Erad = self.Eoftsample[-1]
-            else:
-                self._Erad = self.Eoft(self.times[-1])
-
-        return self._Erad
-
-
-    @property
-    def dPdtsample(self):
-        '''Implement Eq. (3.14-3.15) of arXiv:0707.4654 for the linear momentum flux. Note that the modes provided by the surrogate models are actually h*(r/M) extracted as r=infinity, so the r^2 factor is already in there. '''
-
-        dPpdt = 0
-        dPzdt = 0
-
-        for l,m in summodes.single(self.lmax): # Use lmax+1 because sum involves terms with l-1
-
-            # Eq. 3.14. dPpdt= dPxdt + i dPydt
-            dPpdt += (1/(8*np.pi)) * self.hdotsamplefix(l,m) * ( coeffs.a(l,m) * np.conj(self.hdotsamplefix(l,m+1)) + coeffs.b(l,-m) * np.conj(self.hdotsamplefix(l-1,m+1)) - coeffs.b(l+1,m+1) * np.conj(self.hdotsamplefix(l+1,m+1)) )
-            # Eq. 3.15
-            dPzdt += (1/(16*np.pi)) * self.hdotsamplefix(l,m) * ( coeffs.c(l,m) * np.conj(self.hdotsamplefix(l,m)) + coeffs.d(l,m) * np.conj(self.hdotsamplefix(l-1,m)) + coeffs.d(l+1,m) * np.conj(self.hdotsamplefix(l+1,m)) )
-
-        dPxdt=dPpdt.real # From the definition of Pplus
-        dPydt=dPpdt.imag # From the definition of Pplus
-        dPzdt=dPzdt.real # Kill the imaginary part
-        assert max(dPzdt.imag)<1e-6 # Check...
-
-        return dPxdt,dPydt,dPzdt
-
-    def dPdtint(self,t):
-        '''Implement Eq. (3.14-3.15) of arXiv:0707.4654 for the linear momentum flux. Note that the modes provided by the surrogate models are actually h*(r/M) extracted as r=infinity, so the r^2 factor is already in there.'''
-
-        dPpdt = 0
-        dPzdt = 0
-        for l,m in summodes.single(self.lmax): # Sum involves l-1, but that term is killed by the first integral
-
-            # Eq. 3.14. dPpdt= dPxdt + i dPydt
-            dPpdt += (1/(8*np.pi)) * self.hdotintfix(l,m,t) * ( coeffs.a(l,m) * np.conj(self.hdotintfix(l,m+1,t)) + coeffs.b(l,-m) * np.conj(self.hdotintfix(l-1,m+1,t)) - coeffs.b(l+1,m+1) * np.conj(self.hdotintfix(l+1,m+1,t)) )
-            # Eq. 3.15
-            dPzdt += (1/(16*np.pi)) * self.hdotintfix(l,m,t) * ( coeffs.c(l,m) * np.conj(self.hdotintfix(l,m,t)) + coeffs.d(l,m) * np.conj(self.hdotintfix(l-1,m,t)) + coeffs.d(l+1,m) * np.conj(self.hdotintfix(l+1,m,t)) )
-
-        dPxdt=dPpdt.real # From the definition of Pplus
-        dPydt=dPpdt.imag # From the definition of Pplus
-        dPzdt=dPzdt.real # Kill the imaginary part
-        assert dPzdt.imag<1e-6 # Check...
-
-        return dPxdt,dPydt,dPzdt
-
-    @property
-    def Poftsample(self):
-        if self._Poftsample is None:
-            self._Poftsample = np.array([ [scipy.integrate.simps(component[:i],self.times[:i]) for i in np.array(range(len(self.times)))+1] for component in self.dPdtsample])
-        return self._Poftsample
-
-    @property
-    def Poftint(self):
-        ''' Integrate the linear momentum flux, to find the linear momentum (or velocity since it's in mass units) as a function of time.'''
-        if self._Poftint is None:
-            self._Poftint = lambda t: np.transpose(scipy.integrate.odeint(lambda P,tx: self.dPdtint(tx),  [0,0,0], np.append(self.times[0],t))[1:])
-        return self._Poftint
-
-    def Poft(self,t):
-        ''' Evaluate P(t)'''
-
-        try: len(t)
-        except: t=[t]
-
-        if not self.spline_flag and list(t)==list(self.times):
-            return self.Poftsample
-        else:
-            return self.Poftint(t)
-
-    def voft(self,t):
+    def voft(self):
         ''' Velocity of the remnant is minus the emitted momentum'''
-        return -self.Poft(t)
+        return -self.Poft
 
     @property
-    def Pradcomp(self):
-        '''Component of the kick: this the momentum emitted, not the recoil. Difference is just a minus.'''
-        if self._Pradcomp is None:
-
-            if self.spline_flag is False:
-                if self._Poftsample is None: # Looks like you don't need the whole profile, but only the final kick
-                    self._Pradcomp= np.array([scipy.integrate.simps(component,self.times) for component in self.dPdtsample])
-                else:
-                    self._Pradcomp = np.array(self.Poftsample[:,-1])
-            else:
-                self._Pradcomp = self.Poft(self.times[-1])
-
-        return self._Pradcomp
-
-    @property
-    def vkickcomp(self):
-        '''Recoil is minus the emitted momentum.'''
-        return -self.Pradcomp
-
-    @property
-    def Prad(self):
-        '''Magnitude of the kick'''
-        if self._Prad is None:
-            self._Prad = np.linalg.norm(self.Pradcomp)
-        return self._Prad
-
-    @property
-    def vkick(self):
-        ''' Kick magnitude'''
+    def kick(self):
+        '''Final kick velocity'''
         return self.Prad
 
     @property
-    def Praddir(self):
-        if self._Praddir is None:
-            self._Praddir = self.Pradcomp/self.Prad
-        return self._Praddir
+    def kickcomp(self):
+        '''Components of the kick in the same xyz plane of the surrogate'''
+        return self.voft[-1]
 
     @property
-    def vkickdir(self):
-        '''Kick direction (unit vector)'''
-        return -self.Praddir
+    def kickdir(self):
+        '''Kick direction in the same xyz plane of the surrogate'''
+        return self.kickcomp/self.kick
+
+
 
     @property
-    def dJdtsample(self):
-        '''Implement Eq. (3.22-3.24) of arXiv:0707.4654 for the angular momentum flux. Note that the modes provided by the surrogate models are actually h*(r/M) extracted as r=infinity, so the r^2 factor is already in there. You also don't need the -i factor in front, because that paper uses the convention Im(a+ib)=ib, while Im(a+ib)=b in python'''
+    def dJdt(self):
+        '''Implement Eq. (3.22-3.24) of arXiv:0707.4654 for the linear momentum flux. Note that the modes provided by the surrogate models are actually h*(r/M) extracted as r=infinity, so the r^2 factor is already in there. '''
 
-        dJxdt = 0
-        dJydt = 0
-        dJzdt = 0
+        if self._dJdt is None:
 
-        for l,m in summodes.single(self.lmax+1): # Use lmax+1 because sum involves terms with l-1
+            dJxdt = 0
+            dJydt = 0
+            dJzdt = 0
 
-            # Eq. 3.22
-            dJxdt += (1/(32*np.pi)) * self.hsamplefix(l,m) * ( coeffs.f(l,m) * np.conj(self.hdotsamplefix(l,m+1)) + coeffs.f(l,-m) * np.conj(self.hdotsamplefix(l,m-1)) )
-            # Eq. 3.23
-            dJydt += (-1/(32*np.pi)) * self.hsamplefix(l,m) * ( coeffs.f(l,m) * np.conj(self.hdotsamplefix(l,m+1)) - coeffs.f(l,-m) * np.conj(self.hdotsamplefix(l,m-1)) )
-            # Eq. 3.24
-            dJzdt += (1/(16*np.pi)) * m * self.hsamplefix(l,m) * np.conj(self.hdotsamplefix(l,m))
+            for l,m in summodes.single(self.lmax):
 
-        dJxdt=dJxdt.imag
-        dJydt=dJydt.real
-        dJzdt=dJzdt.imag
+                # Eq. 3.22
+                dJxdt += (1/(32*np.pi)) * self.h(l,m) * ( coeffs.f(l,m) * np.conj(self.hdot(l,m+1)) + coeffs.f(l,-m) * np.conj(self.hdot(l,m-1)) )
+                # Eq. 3.23
+                dJydt += (-1/(32*np.pi)) * self.h(l,m) * ( coeffs.f(l,m) * np.conj(self.hdot(l,m+1)) - coeffs.f(l,-m) * np.conj(self.hdot(l,m-1)) )
+                # Eq. 3.24
+                dJzdt += (1/(16*np.pi)) * m * self.h(l,m) * np.conj(self.hdot(l,m))
 
-        return dJxdt,dJydt,dJzdt
+            dJxdt=dJxdt.imag
+            dJydt=dJydt.real
+            dJzdt=dJzdt.imag
 
 
-    def dJdtint(self,t):
-        '''Implement Eq. (3.14-3.15) of arXiv:0707.4654 for the linear momentum flux. Note that the modes provided by the surrogate models are actually h*(r/M) extracted as r=infinity, so the r^2 factor is already in there.'''
-        dJxdt = 0
-        dJydt = 0
-        dJzdt = 0
+            self._dJdt = np.transpose([dJxdt,dJydt,dJzdt])
 
-        for l,m in summodes.single(self.lmax+1): # Use lmax+1 because sum involves terms with l-1
-
-            # Eq. 3.22
-            dJxdt += (1/(32*np.pi)) * self.hintfix(l,m,t) * ( coeffs.f(l,m) * np.conj(self.hdotintfix(l,m+1,t)) + coeffs.f(l,-m) * np.conj(self.hdotintfix(l,m-1,t)) )
-            # Eq. 3.23
-            dJydt += (-1/(32*np.pi)) * self.hintfix(l,m,t) * ( coeffs.f(l,m) * np.conj(self.hdotintfix(l,m+1,t)) - coeffs.f(l,-m) * np.conj(self.hdotintfix(l,m-1,t)) )
-            # Eq. 3.24
-            dJzdt += (1/(16*np.pi)) * m * self.hintfix(l,m,t) * np.conj(self.hdotintfix(l,m,t))
-
-        dJxdt=dJxdt.imag
-        dJydt=dJydt.real
-        dJzdt=dJzdt.imag
-
-        return dJxdt,dJydt,dJzdt
+        return self._dJdt
 
     @property
-    def Joftsample(self):
-        if self._Joftsample is None:
-            self._Joftsample = np.array([ [scipy.integrate.simps(component[:i],self.times[:i]) for i in np.array(range(len(self.times)))+1] for component in self.dJdtsample])
-        return self._Joftsample
+    def Joft(self):
+        if self._Joft is None:
 
-    @property
-    def Joftint(self):
-        ''' Integrate the angular momentum flux, to find the linear momentum (or velocity since it's in mass units) as a function of time.'''
-        if self._Joftint is None:
-            self._Joftint = lambda t: np.transpose(scipy.integrate.odeint(lambda J,tx: self.dJdtint(tx),  [0,0,0], np.append(self.times[0],t))[1:])
-        return self._Joftint
+            # The integral of a spline is called antiderivative (mmmh...)
+            origin=[0,0,0]
+            self._Joft = np.transpose([spline(self.times,v).antiderivative()(self.times)-o  for v,o in zip(np.transpose(self.dJdt),origin)])
 
-    def Joft(self,t):
-        ''' Evaluate J(t)'''
-
-        try: len(t)
-        except: t=[t]
-
-        if not self.spline_flag and list(t)==list(self.times):
-            return self.Joftsample
-        else:
-            return self.Joftint(t)
-
-    @property
-    def Jradcomp(self):
-        '''Component of the kick: this the momentum emitted, not the recoil. Difference is just a minus.'''
-        if self._Jradcomp is None:
-
-            if self.spline_flag is False:
-                if self._Joftsample is None: # Looks like you don't need the whole profile, but only the final kick
-                    self._Jradcomp= np.array([scipy.integrate.simps(component,self.times) for component in self.dJdtsample])
-                else:
-                    self._Jradcomp = np.array(self.Joftsample[:,-1])
-            else:
-                self._Jradcomp = self.Joft(self.times[-1])
-
-        return self._Jradcomp
+        return self._Joft
 
     @property
     def Jrad(self):
-        '''Magnitude of the kick'''
+        ''' Total linear momentum radiated'''
         if self._Jrad is None:
-            self._Jrad = np.linalg.norm(self.Jradcomp)
+            self._Jrad = np.linalg.norm(self.Joft[-1])
         return self._Jrad
 
     @property
-    def Jraddir(self):
-        if self._Jraddir is None:
-            self._Jraddir = self.Jradcomp/self.Jrad
-        return self._Jraddir
+    def xoft(self):
+        if self._xoft is None:
+            # The integral of a spline is called antiderivative (mmmh...)
 
-
-    @property
-    def trajectorysample(self):
-        ''' Minus because I want to inegrate the BH motion, not the linear momentum in GWs'''
-        if self._trajectorysample is None:
-            self._trajectorysample = -np.array([ [scipy.integrate.simps(component[:i],self.times[:i]) for i in np.array(range(len(self.times)))+1] for component in self.Poftsample])
-
-        return self._trajectorysample
-
-    @property
-    def trajectoryint(self):
-        ''' Integrate the linear momentum flux, to find the linear momentum (or velocity since it's in mass units) as a function of time.'''
-        if self._trajectoryint is None:
-            raise NotImplementedError
             #print("here")
-            #print(scipy.integrate.odeint(lambda P,tx: self.Poftint(tx).flatten(),  [0,0,0], np.append(self.times[0],10))[1:], Dfun= lambda P,tx: self.dPdtint(tx))
-            #print("here")
-            #self._trajectoryint = lambda t: np.transpose(scipy.integrate.odeint(lambda P,tx: self.Poftint(tx),  [0,0,0], np.append(self.times[0],t))[1:])
-            #print(self._trajectoryint(10))
-        return self._trajectoryint
+            #origin = [np.average(x) for x in np.transpose(self.dvdt[0:100])]
+            origin=[0,0,0]
+            #origin = np.array([spline(self.times,v).antiderivative()(self.times[30])  for v in np.transpose(self.dvdt)])
+            self._xoft = np.transpose([spline(self.times,v).antiderivative()(self.times)-o  for v,o in zip(np.transpose(self.voft),origin)])
+            #print(origin)
+            #print(self._v[-1])
+            #print("")
+            #sys.exit()
+        return self._xoft
 
 
-    def trajectory(self,t):
-        ''' Evaluate P(t)'''
-
-        try: len(t)
-        except: t=[t]
-
-        if not self.spline_flag and list(t)==list(self.times):
-            return self.trajectorysample
-        else:
-            return self.trajectoryint(t)
 
 
 
 def project(timeseries,direction):
     ''' Project a 3D time series along some direction'''
-    return np.array([np.dot(t,direction) for t in np.transpose(timeseries)])
+    return np.array([np.dot(t,direction) for t in timeseries])
 
 
 
@@ -746,6 +409,121 @@ def parseSXS(index):
 
 
 
+def fitkick(q,chi1m,chi2m,theta1,theta2,deltaphi,bigTheta):
+
+    '''
+    Estimate the final kick of the BH remnant following a BH merger. We
+    implement the fitting formula to numerical relativity simulations developed
+    by the Rochester group. The implementation is the same as reported in Gerosa
+    and Kesden 2016
+    '''
+
+    q = min(q,1/q)  #Make sure q<1 in here
+    # Spins here are defined in a frame with L along z and S1 in xz
+    eta=q*pow(1.+q,-2.)
+    hatL = np.array([0,0,1])
+    hatS1 = np.array([np.sin(theta1),0,np.cos(theta1)])
+    hatS2 = np.array([np.sin(theta2)*np.cos(deltaphi),np.sin(theta2)*np.sin(deltaphi),np.cos(theta2)])
+    #Useful spin combinations.
+    Delta = (q*chi2m*hatS2-chi1m*hatS1)/(1.+q)
+    Delta_par = np.dot(Delta,hatL)
+    Delta_perp = np.linalg.norm(np.cross(Delta,hatL))
+    chit = (q*q*chi2m*hatS2+chi1m*hatS1)/pow(1.+q,2.)
+    chit_par = np.dot(chit,hatL)
+    chit_perp = np.linalg.norm(np.cross(chit,hatL))
+
+    #Kick. Coefficients are quoted in km/s
+
+    # vm and vperp are like in Kesden at 2010a, vpar is modified from Lousto Zlochower 2013
+    zeta=np.radians(145.)
+    A=1.2e4
+    B=-0.93
+    H=6.9e3
+
+    # Switch on/off the various (super)kick contribution. Default are all on
+    superkick=True
+    hangupkick=True
+    crosskick=True
+
+    if superkick==True:
+        V11=3677.76
+    else:
+        V11=0.
+    if hangupkick==True:
+        VA=2481.21
+        VB=1792.45
+        VC=1506.52
+    else:
+        VA=0.
+        VB=0.
+        VC=0.
+    if crosskick==True:
+        C2=1140.
+        C3=2481.
+    else:
+        C2=0.
+        C3=0.
+
+    vm=A*eta*eta*(1.+B*eta)*(1.-q)/(1.+q)
+    vperp=H*eta*eta*Delta_par
+    vpar=16.*eta*eta* (Delta_perp*(V11+2.*VA*chit_par+4.*VB*pow(chit_par,2.)+8.*VC*pow(chit_par,3.)) + chit_perp*Delta_par*(2.*C2+4.*C3*chit_par)) * np.cos(bigTheta)
+    vkick=np.linalg.norm([vm+vperp*np.cos(zeta),vperp*np.sin(zeta),vpar])
+
+    #print(vkick)
+
+    assert vkick<5000 #I got v_kick>5000km/s. This shouldn't be possibile"
+    vkick=vkick/299792.458  # Natural units
+
+
+    return vkick
+
+
+class optkick(object):
+
+    def __init__(self,q=1,chi1=[0,0,0],chi2=[0,0,0]):
+        self.q = q # Mass ratio
+        self.chi1 = np.array(chi1) # chi1 is the spin of the larger BH
+        self.chi2 = np.array(chi2) # chi2 is the spin of the smaller BH
+
+        self.chi1m,self.chi2m,self.theta1,self.theta2,self.deltaphi,dummy = convert.coordstoangles(self.chi1,self.chi2)
+
+    def _phasefit(self,x):
+        return fitkick(self.q,self.chi1m,self.chi2m,self.theta1,self.theta2,self.deltaphi,x)
+    def phasefit(self,xs):
+        return np.array([self._phasefit(x) for x in xs])
+
+    def _phasesur(self,x):
+        chi1h,chi2h=convert.anglestocoords(self.chi1m,self.chi2m,self.theta1,self.theta2,self.deltaphi,x)
+        return bhbin(q=self.q,chi1=chi1h,chi2=chi2h).kick
+    def phasesur(self,xs):
+        return np.array([self._phasesur(x) for x in xs])
+
+    def find(self,flag):
+        if flag=='fit':
+            phasefunc=self._phasefit
+        elif flag=='sur':
+            phasefunc=self._phasesur
+        else:
+            raise InputError, "set flag equal to 'fit' or 'sur'"
+
+
+        xs=np.linspace(-np.pi,np.pi,300)
+        evals= np.array([phasefunc(x) for x in xs])
+        minx = xs[evals==min(evals)][0]
+        maxx = xs[evals==max(evals)][0]
+
+        #print(minx,maxx)
+
+        phasemin=scipy.fmin(lambda x:phasefunc(x),minx)
+        phasemax=scipy.fmin(lambda x:-phasefunc(x),maxx)
+
+        #phasemin,phasemax = [scipy.optimize.fminbound(lambda x: sign*phasefunc(x),-np.pi,np.pi) for sign in [1,-1]]
+        kickmin,kickmax = [phasefunc(x) for x in phasemin,phasemax]
+
+        return kickmin,kickmax
+
+
+
 class plots(object):
     ''' Do plots'''
 
@@ -756,7 +534,7 @@ class plots(object):
         def wrapper(self):
 
             # Before function call
-            global plt
+            global plt,AutoMinorLocator,MultipleLocator
             from matplotlib import use #Useful when working on SSH
             use('Agg')
             from matplotlib import rc
@@ -768,70 +546,35 @@ class plots(object):
             rc('ytick',right=True)
             import matplotlib.pyplot as plt
             from mpl_toolkits.mplot3d import Axes3D
+            from matplotlib.backends.backend_pdf import PdfPages
+            from matplotlib.ticker import AutoMinorLocator,MultipleLocator
+            pp= PdfPages(function.__name__+".pdf")
 
             #function(*args, **kw)
-            function(self)
+            fig = function(self)
 
-            # After function call
-            plt.savefig(function.__name__+".pdf",bbox_inches='tight')
-            plt.clf()
-
+            try:
+                len(fig)
+            except:
+                fig=[fig]
+            for f in fig:
+                f.savefig(pp, format='pdf',bbox_inches='tight')
+                f.clf()
+            pp.close()
         return wrapper
-
-    @classmethod
-    @plottingstuff
-    def dpdt(self):
-
-        fig = plt.figure(figsize=(6,6))
-        ax=fig.add_axes([0,0,1,1])
-        ax2=fig.add_axes([1.2,0,1,1])
-
-        sk=bhbin()
-        start=len(sk.times)-600
-        end=len(sk.times)
-        ax.plot(sk.times[start:end],sk.dvdt[start:end,0])
-        ax.plot(sk.times[start:end],sk.dvdt[start:end,1])
-        ax.plot(sk.times[start:end],sk.dvdt[start:end,2])
-        ax2.plot(sk.times[start:end],sk.v[start:end,0])
-        ax2.plot(sk.times[start:end],sk.v[start:end,1])
-        ax2.plot(sk.times[start:end],sk.v[start:end,2])
-
-
-
-
-    @classmethod
-    @plottingstuff
-    def compare(self):
-        fig = plt.figure(figsize=(6,6))
-        ax=fig.add_axes([0,0,1,1])
-        q_vals = np.linspace(0.5,1,5)
-
-        data1=[]
-        for q in q_vals:
-            print(q)
-            sk = surrkick(q=q , chi1=[0,0,0],chi2=[0,0,0],spline_flag=True)
-            data1.append(sk.Prad)
-        print(data1)
-        data2=[]
-        for q in q_vals:
-            print(q)
-            k = bhbin(q=q)
-            data2.append(k.Prad)
-
-        ax.plot(q_vals,np.array(data1)-np.array(data2))
-        #ax.plot(q_vals,data1)
-        #ax.plot(q_vals,data2)
 
 
     @classmethod
     @plottingstuff
     def nonspinning(self):
 
-        fig = plt.figure(figsize=(6,6))
+
+
+        figP = plt.figure(figsize=(6,6))
         L=0.7
         H=0.7
         S=0.2
-        axall = [fig.add_axes([i*(S+H),0,L,H]) for i in [0,1,2]]
+        axP = [figP.add_axes([i*(S+H),0,L,H]) for i in [0,1,2]]
 
 
         q_vals = np.linspace(0.5,1,100)
@@ -842,8 +585,6 @@ class plots(object):
             for q in q_vals:
                 print(q)
                 sk = bhbin(q=q)
-                sk.Erad=0
-                sk.Jrad=0
                 data.append([sk.Erad,sk.Prad,sk.Jrad])
 
             print("Time", time.time()-t0)
@@ -871,151 +612,315 @@ class plots(object):
         #axall[0].legend(fontsize=15)
         #axall[1].legend(fontsize=15)
 
-
-
-    @classmethod
-    @plottingstuff
-    def residuals(self):
-
-        fig = plt.figure(figsize=(6,6))
-        L=0.7
-        H=0.7
-        S=0.25
-        axall = [fig.add_axes([i*(S+H),0,L,H]) for i in [0,1]]
-
-        q_vals = np.linspace(0.5,1,100)
-
-        vk_vals = []
-        E_vals=[]
-        t0=time.time()
-        for q in q_vals:
-            print(q)
-            sk1 = surrkick(q=q , chi1=[0,0,0],chi2=[0,0,0],spline_flag=True)
-            sk2 = surrkick(q=q , chi1=[0,0,0],chi2=[0,0,0],spline_flag=False)
-
-            vk_vals.append(np.abs(sk1.vkick-sk2.vkick)*2/(sk1.vkick+sk2.vkick))
-            E_vals.append(np.abs(sk1.Erad-sk2.Erad)*2/(sk1.Erad+sk2.Erad))
-
-
-        axall[0].plot(q_vals,vk_vals)
-        axall[1].plot(q_vals,E_vals)
-
-        axall[0].set_ylim(0,0.006)
-        axall[1].set_ylim(0,0.006)
-
-        axall[0].set_xlabel("$q$")
-        axall[1].set_xlabel("$q$")
-        axall[0].set_ylabel("$\\Delta v_k/v_k$")
-        axall[1].set_ylabel("$\\Delta E_{\\rm rad}/E_{\\rm rad}$")
-
-        axall[0].legend(fontsize=15)
-        axall[1].legend(fontsize=15)
-
-
-
-
-        #plt.savefig('unequal.pdf',bbox_inches='tight')
-
-
-
+        return fig
 
     @classmethod
     @plottingstuff
     def profiles(self):
 
-        fig = plt.figure(figsize=(6,6))
         L=0.7
         H=0.3
         S=0.05
-        axall = [fig.add_axes([0,-i*(S+H),L,H]) for i in [0,1,2,3]]
+
+
+        figP = plt.figure(figsize=(6,6))
+        axP = [figP.add_axes([0,-i*(S+H),L,H]) for i in [0,1,2,3]]
+        figE = plt.figure(figsize=(6,6))
+        axE = figE.add_axes([0,0,L,H])
+        figJ = plt.figure(figsize=(6,6))
+        axJ = [figJ.add_axes([0,-i*(S+H),L,H]) for i in [0,1,2,3]]
 
         q_vals = np.linspace(1,0.5,8)
 
         for i,q in enumerate(q_vals):
             print(q)
             color=plt.cm.copper(i/len(q_vals))
-            b = surrkick(q=q , chi1=[0,0,0],chi2=[0,0,0],spline_flag=False)
-            axall[0].plot(b.times,b.voft(b.times)[0]*1000,color=color,alpha=0.7)
-            axall[1].plot(b.times,b.voft(b.times)[1]*1000,color=color,alpha=0.7)
-            axall[2].plot(b.times,b.voft(b.times)[2]*1000,color=color,alpha=0.7)
-            axall[3].plot(b.times,project(b.voft(b.times),b.vkickdir)*1000,color=color,alpha=0.7)
+            b = bhbin(q=q)
 
-        for ax in axall:
+            axP[0].plot(b.times,b.voft[:,0]*1000,color=color,alpha=0.7)
+            axP[1].plot(b.times,b.voft[:,1]*1000,color=color,alpha=0.7)
+            axP[2].plot(b.times,b.voft[:,2]*1000,color=color,alpha=0.7)
+            axP[3].plot(b.times,project(b.voft,b.kickdir)*1000,color=color,alpha=0.7)
+
+            axE.plot(b.times,b.Eoft,color=color,alpha=0.7)
+
+            axJ[0].plot(b.times,b.Joft[:,0],color=color,alpha=0.7)
+            axJ[1].plot(b.times,b.Joft[:,1],color=color,alpha=0.7)
+            axJ[2].plot(b.times,b.Joft[:,2],color=color,alpha=0.7)
+            axJ[3].plot(b.times,project(b.Joft,b.Joft[-1]),color=color,alpha=0.7)
+
+
+        for ax in axP+[axE]+axJ:
             ax.set_xlim(-50,50)
-            ax.set_ylim(-1,1)
-        for ax in axall[:-1]:
+
+        for ax in axP[:-1]+axJ[:-1]:
             ax.set_xticklabels([])
-        axall[-1].set_xlabel("$t\;\;[M]$")
-        for ax,d in zip(axall,["x","y","z","v_k"]):
+        for ax in [axP[-1]]+[axJ[-1]]+[axE]:
+            ax.set_xlabel("$t\;\;[M]$")
+        for ax,d in zip(axP,["x","y","z","v_k"]):
+            ax.set_ylim(-1,1)
             ax.set_ylabel("$\mathbf{v}(t)\cdot \hat\mathbf{"+d+"} \;\;[0.001c]$")
+        axE.set_ylabel("$E(t) \;\;[M]$")
+
+        for ax,d in zip(axJ,["x","y","z","J_k"]):
+            ax.set_ylim(-0.1,0.5)
+            ax.set_ylabel("$\mathbf{J}(t)\cdot \hat\mathbf{"+d+"} \;\;[M^2]$")
+
+
+        return [figP,figE,figJ]
 
     @classmethod
     @plottingstuff
     def centerofmass(self):
 
+
+        allfig=[]
+
+
+        if True:
+            fig = plt.figure(figsize=(6,6))
+            ax=fig.add_axes([0,0,0.7,0.7], projection='3d')
+
+            q=0.8
+            chi1=[0,0,0]
+            chi2=[0,0,0]
+            sk = bhbin(q=q , chi1=chi1,chi2=chi2)
+
+            x0,y0,z0=sk.xoft[sk.times==min(abs(sk.times))][0]
+
+            x,y,z=np.transpose(sk.xoft[np.logical_and(sk.times>-1000,sk.times<19)])
+            ax.plot(x-x0,y-y0,z-z0)
+
+            ax.scatter(0,0,0,marker='.',s=40,alpha=0.5)
+            x,y,z=np.transpose(sk.xoft)
+            vx,vy,vz=np.transpose(sk.voft)
+            for t in [-50,-10,-2,2,10,18]:
+                i = np.abs(sk.times - t).argmin()
+                v=np.linalg.norm([vx[i],vy[i],vz[i]])
+                arrowsize=1e-4
+                ax.quiver(x[i]-x0,y[i]-y0,z[i]-z0,vx[i]*arrowsize/v,vy[i]*arrowsize/v,vz[i]*arrowsize/v,length=0.0001,arrow_length_ratio=9000,alpha=0.5)
+
+            ax.set_xlim(-0.001,0.001)
+            ax.set_ylim(-0.001,0.001)
+            ax.set_zlim(-0.001,0.001)
+
+            ax.set_title('$q='+str(q)+'\;\;\chi_1='+str(chi1)+'\;\;\chi_2='+str(chi2)+'$')
+            ax.set_xticklabels(ax.get_xticks(), fontsize=13)
+            ax.set_yticklabels(ax.get_yticks(), fontsize=13)
+            ax.set_zticklabels(ax.get_zticks(), fontsize=13)
+
+            allfig.append(fig)
+
+        if True:
+            fig = plt.figure(figsize=(6,6))
+            ax=fig.add_axes([0,0,0.7,0.7], projection='3d')
+
+            q=1
+            chi1=[0.8,0,0]
+            chi2=[-0.8,0,0]
+            sk = bhbin(q=q , chi1=chi1, chi2=chi2)
+
+            x0,y0,z0=sk.xoft[sk.times==min(abs(sk.times))][0]
+
+            x,y,z=np.transpose(sk.xoft[np.logical_and(sk.times>-1000,sk.times<19)])
+            ax.plot(x-x0,y-y0,z-z0)
+
+            ax.scatter(0,0,0,marker='.',s=40,alpha=0.5)
+            x,y,z=np.transpose(sk.xoft)
+            vx,vy,vz=np.transpose(sk.voft)
+            for t in [2,5,7]:
+                i = np.abs(sk.times - t).argmin()
+                v=np.linalg.norm([vx[i],vy[i],vz[i]])
+                arrowsize=2e-3
+                ax.quiver(x[i]-x0,y[i]-y0,z[i]-z0,vx[i]*arrowsize/v,vy[i]*arrowsize/v,vz[i]*arrowsize/v,length=0.0001,arrow_length_ratio=9000,alpha=0.5)
+
+            ax.set_xlim(-0.01,0.01)
+            ax.set_ylim(-0.01,0.01)
+            ax.set_zlim(-0.01,0.01)
+
+            ax.set_title('$q='+str(q)+'\;\;\chi_1='+str(chi1)+'\;\;\chi_2='+str(chi2)+'$')
+            ax.set_xticklabels(ax.get_xticks(), fontsize=13)
+            ax.set_yticklabels(ax.get_yticks(), fontsize=13)
+            ax.set_zticklabels(ax.get_zticks(), fontsize=13)
+
+
+            allfig.append(fig)
+
+
+
+
+        if True:
+            fig = plt.figure(figsize=(6,6))
+            ax=fig.add_axes([0,0,0.7,0.7], projection='3d')
+
+            q=0.8
+            chi1=[0.8,0,0]
+            chi2=[-0.8,0,0]
+            sk = bhbin(q=q , chi1=chi1, chi2=chi2)
+
+            x0,y0,z0=sk.xoft[sk.times==min(abs(sk.times))][0]
+
+            x,y,z=np.transpose(sk.xoft[np.logical_and(sk.times>-1000,sk.times<19)])
+            ax.plot(x-x0,y-y0,z-z0)
+
+            ax.scatter(0,0,0,marker='.',s=40,alpha=0.5)
+            x,y,z=np.transpose(sk.xoft)
+            vx,vy,vz=np.transpose(sk.voft)
+            for t in [-900,-50,-10,-5,-2,2,5,6,18]:
+                i = np.abs(sk.times - t).argmin()
+                v=np.linalg.norm([vx[i],vy[i],vz[i]])
+                arrowsize=1e-4
+                ax.quiver(x[i]-x0,y[i]-y0,z[i]-z0,vx[i]*arrowsize/v,vy[i]*arrowsize/v,vz[i]*arrowsize/v,length=0.0001,arrow_length_ratio=9000,alpha=0.5)
+
+            ax.set_xlim(-0.0008,0.0008)
+            ax.set_ylim(-0.0008,0.0008)
+            ax.set_zlim(-0.0008,0.0008)
+
+            ax.set_title('$q='+str(q)+'\;\;\chi_1='+str(chi1)+'\;\;\chi_2='+str(chi2)+'$')
+            ax.set_xticklabels(ax.get_xticks(), fontsize=13)
+            ax.set_yticklabels(ax.get_yticks(), fontsize=13)
+            ax.set_zticklabels(ax.get_zticks(), fontsize=13)
+
+
+            allfig.append(fig)
+
+
+        return allfig
+
+
+    @classmethod
+    @plottingstuff
+    def alphaseries(self):
+        ''' Attempt to reproduce Fig 4  in Brugmann+ 2008, their alpha series'''
+
         fig = plt.figure(figsize=(6,6))
-        ax=fig.add_axes([0,0,0.7,0.7], projection='3d')
+        ax=fig.add_axes([0,0,0.7,0.7])
 
-        q=0.8
-        sk = surrkick(q=q , chi1=[0,0,0],chi2=[0,0,0])
+        chi_vals= np.linspace(0,0.8,9)
+        for i,chimag in enumerate(chi_vals):
+            print(chimag)
+            color=plt.cm.copper(i/len(chi_vals))
 
-        x0,y0,z0=np.transpose(sk.trajectory(sk.times))[sk.times==min(abs(sk.times))][0]
-        x,y,z=np.transpose(np.transpose(sk.trajectory(sk.times))[np.logical_and(sk.times>-1000,sk.times<19)])
-        ax.plot(x-x0,y-y0,z-z0)
+            #chimag=0.723
+            alpha_vals=np.linspace(0,2.*np.pi,50)
+            kick_vals=[]
+            for alpha in alpha_vals:
+                sk = bhbin(q=1 , chi1=[chimag*np.cos(alpha),chimag*np.sin(alpha),0],chi2=[-chimag*np.cos(alpha),-chimag*np.sin(alpha),0])
+                kick_vals.append(convert.kms(sk.kickcomp[-1]))
 
-        ax.scatter(0,0,0,marker='.',s=40,alpha=0.5)
-        x,y,z=sk.trajectory(sk.times)
-        vx,vy,vz=sk.voft(sk.times)
-        for t in [-50,-10,-2,2,10,18]:
-            i = np.abs(sk.times - t).argmin()
-            v=np.linalg.norm([vx[i],vy[i],vz[i]])
-            arrowsize=1e-4
-            ax.quiver(x[i]-x0,y[i]-y0,z[i]-z0,vx[i]*arrowsize/v,vy[i]*arrowsize/v,vz[i]*arrowsize/v,length=0.0001,arrow_length_ratio=9000,alpha=0.5)
+            ax.plot(alpha_vals,kick_vals,color=color)
+            #ax.plot(alpha_vals,2725*np.cos(0.98*np.pi+alpha_vals))
 
-        ax.set_xlim(-0.001,0.001)
-        ax.set_ylim(-0.001,0.001)
-        ax.set_zlim(-0.001,0.0001)
 
-        ax.set_xticklabels(ax.get_xticks(), fontsize=13)
-        ax.set_yticklabels(ax.get_yticks(), fontsize=13)
-        ax.set_zticklabels(ax.get_zticks(), fontsize=13)
+        ax.set_xlim(0,2.*np.pi)
+        ax.set_ylim(-3000,3000)
+        ax.set_xlabel("$\\alpha$")
+        ax.set_ylabel("$\mathbf{v}(t)\cdot \hat\mathbf{z} \;\;[{\\rm km/s}]$")
+        ax.set_xticks([0,np.pi/2,np.pi,3*np.pi/2,2*np.pi])
+        ax.set_xticklabels(['$0$','$\pi/2$','$\pi$','$3\pi/2$','$2\pi$'])
+
+        ax.xaxis.set_minor_locator(AutoMinorLocator())
+        ax.yaxis.set_minor_locator(AutoMinorLocator())
+
+        return fig
+
+
+    @classmethod
+    @plottingstuff
+    def testoptimizer(self):
+
+        allfig=[]
+
+        for i in range(50):
+            print(i)
+
+
+            fig = plt.figure(figsize=(6,6))
+            ax=fig.add_axes([0,0,0.7,0.7])
+
+            q=np.random.uniform(0.5,1)
+            chi1m=np.random.uniform(0,0.8)
+            chi2m=np.random.uniform(0,0.8)
+            theta1=np.arccos(np.random.uniform(-1,1))
+            theta2=np.arccos(np.random.uniform(-1,1))
+            deltaphi=np.random.uniform(-np.pi,np.pi)
+
+            chi1,chi2=convert.anglestocoords(chi1m,chi2m,theta1,theta2,deltaphi,1.)
+
+            #chimag=0.723
+            #chi1=[chimag,0,0]
+            #chi2=[-chimag,0,0]
+
+
+            alpha_vals=np.linspace(-np.pi,np.pi,50)
+            ok=optkick(q=q,chi1=chi1,chi2=chi2)
+            ax.plot(alpha_vals,convert.kms(ok.phasefit(alpha_vals)),label='fit')
+            ax.plot(alpha_vals,convert.kms(ok.phasesur(alpha_vals)),label='sur')
+
+            #fitmin,fitmax = ok.find(flag='fit')
+            #ax.axhline(fitmin,c='C0',ls='dotted')
+            #ax.axhline(fitmax,c='C0',ls='dotted')
+            #fitmin,fitmax = ok.find(flag='sur')
+            #ax.axhline(fitmin,c='C1',ls='dotted')
+            #ax.axhline(fitmax,c='C1',ls='dotted')
+
+            #
+            #     kick_vals=[]
+            #     for alpha in alpha_vals:
+            #         sk = bhbin(q=1 , chi1=[chimag*np.cos(alpha),chimag*np.sin(alpha),0],chi2=[-chimag*np.cos(alpha),-chimag*np.sin(alpha),0])
+            #         kick_vals.append(convert.kms(sk.kickcomp[-1]))
+            #
+            #     ax.plot(alpha_vals,kick_vals,color=color)
+            #     #ax.plot(alpha_vals,2725*np.cos(0.98*np.pi+alpha_vals))
+            #
+            #
+            #ax.set_xlim(-np.pi,2.*np.pi)
+            # ax.set_ylim(-3000,3000)
+            ax.set_xlabel("$\\alpha$")
+            ax.set_ylabel("$v_k\;\;[{\\rm km/s}]$")
+
+            # ax.set_ylabel("$\mathbf{v}(t)\cdot \hat\mathbf{z} \;\;[{\\rm km/s}]$")
+            ax.set_xticks([-np.pi,-np.pi/2,0,np.pi/2,np.pi])
+            ax.set_xticklabels(['$-\pi$','$-\pi/2$','$0$','$\pi/2$','$\pi$'])
+            #
+            ax.xaxis.set_minor_locator(AutoMinorLocator())
+            ax.yaxis.set_minor_locator(AutoMinorLocator())
+            ax.legend(bbox_to_anchor=(1.05, 1),loc=2,bbox_transform=ax.transAxes, borderaxespad=0.)
+
+            ax.text(1.05,0.8,'$q='+str(round(q,2))+'$\n$\chi_1='+str(round(chi1m,2))+'$\n$\chi_2='+str(round(chi2m,2))+'$\n$\\theta_1='+str(round(theta1,2))+'$\n$\\theta_2='+str(round(theta2,2))+'$\n$\Delta\Phi='+str(round(deltaphi,2))+'$',verticalalignment='top',transform=ax.transAxes)
+
+            allfig.append(fig)
+        return allfig
+
 
 
 
 ########################################
 if __name__ == "__main__":
-    #
-    #sk=surrkick(q=0.6)
-    #print(sk.vkick)
-    #print(sk.Eoft([10,20]))
 
-    #k=bhbin(q=0.7)
-    #print(k.hdotsample.keys())
-    #print(k.hsample[2,2][-1])
-    #print(k.kick)
-    #sk=surrkick(q=0.7,spline_flag=False)
-    #print(sk.vkick)
-    #
-    #sk=surrkick(q=0.8,spline_flag=False)
-    #print(sk.trajectory(sk.times))
-
-
-    #print(sk.trajectory(sk.times))
-    #print(sk.Poft(np.array([10,29])))
-
-    #k=bhbin()
-    #print([max(x) for x in np.transpose(k.dvdt)])
-
-    #print(k.v[-1])
-    #print(k.kick)
-
-
-    plots.compare()
-    #plots.dpdt()
     #plots.nonspinning()
     #plots.residuals()
     #plots.profiles()
     #plots.centerofmass()
+    #plots.alphaseries()
+    #sk=bhbin()
+    #print(sk.times)
+
+    plots.testoptimizer()
+
+    #chi1=[0.4,-0.5,0.9]
+    #chi2=[-0.4,0.5,-0.9]
+    #print(chi1,chi2)
+    #print(convert.anglestocoords(*convert.coordstoangles(chi1,chi2)))
+
+    #chi1mag,chi2mag,theta1,theta2,deltaphi,phi1=0.4,0.6,1,1,0,-1.57
+    #print(convert.coordstoangles(*convert.anglestocoords(chi1mag,chi2mag,theta1,theta2,deltaphi,phi1)))
+
+    #print(scipy.optimize.fminbound(lambda bigTheta: -fitkick(0.8,0.7,0.7,1.57,1/,1,bigTheta), -np.pi, np.pi,))
+
+    #print(scipy.optimize.fminbound(lambda bigTheta: -bhbin(q=0.8,chi1=), -np.pi, np.pi,))
+
+    #print(orbitaloptimizer(0.8,[0.1,0.1,0],[-0.7,0,0]))
     #
     # sur=surrogate()
     # print(sur)
