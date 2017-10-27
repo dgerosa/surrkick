@@ -136,13 +136,13 @@ class surrogate(object):
 class bhbin(object):
     ''' Super class to contain info for a single binary evolution'''
 
-    def __init__(self,q=1,chi1=[0,0,0],chi2=[0,0,0]):
+    def __init__(self,q=1,chi1=[0,0,0],chi2=[0,0,0],t_ref=None):
         self.sur=surrogate().sur() # Initialize the surrogate. Note it's a singleton
         self.q = max(q,1/q) # Make sure q>1 in this class, that's what the surrogate wants
         self.chi1 = np.array(chi1) # chi1 is the spin of the larger BH
         self.chi2 = np.array(chi2) # chi2 is the spin of the smaller BH
         self.times = self.sur.t_coorb # Short name for the time nodes
-
+        self.t_ref=t_ref
 
         self._hsample = None
         self._hdotsample = None
@@ -162,7 +162,7 @@ class bhbin(object):
     def hsample(self):
         '''Extract modes of strain h from the surrogate, evaluated at the surrogate time nodes.'''
         if self._hsample is None:
-            self._hsample = self.sur(self.q, self.chi1, self.chi2,t=self.times) # Returns a python dictionary with keys (l,m)
+            self._hsample = self.sur(self.q, self.chi1, self.chi2,t=self.times,t_ref=self.t_ref) # Returns a python dictionary with keys (l,m)
         return self._hsample
 
     @property
@@ -480,12 +480,13 @@ def fitkick(q,chi1m,chi2m,theta1,theta2,deltaphi,bigTheta):
 
 class optkick(object):
 
-    def __init__(self,q=1,chi1=[0,0,0],chi2=[0,0,0]):
+    def __init__(self,q=1,chi1=[0,0,0],chi2=[0,0,0],t_ref=None):
         self.q = q # Mass ratio
         self.chi1 = np.array(chi1) # chi1 is the spin of the larger BH
         self.chi2 = np.array(chi2) # chi2 is the spin of the smaller BH
-
+        self.t_ref=t_ref
         self.chi1m,self.chi2m,self.theta1,self.theta2,self.deltaphi,dummy = convert.coordstoangles(self.chi1,self.chi2)
+
 
     def _phasefit(self,x):
         return fitkick(self.q,self.chi1m,self.chi2m,self.theta1,self.theta2,self.deltaphi,x)
@@ -494,7 +495,7 @@ class optkick(object):
 
     def _phasesur(self,x):
         chi1h,chi2h=convert.anglestocoords(self.chi1m,self.chi2m,self.theta1,self.theta2,self.deltaphi,x)
-        return bhbin(q=self.q,chi1=chi1h,chi2=chi2h).kick
+        return bhbin(q=self.q,chi1=chi1h,chi2=chi2h,t_ref=self.t_ref).kick
     def phasesur(self,xs):
         return np.array([self._phasesur(x) for x in xs])
 
@@ -831,31 +832,28 @@ class plots(object):
 
         allfig=[]
 
-        for i in range(50):
-            print(i)
-
-
+        for j in range(16):
+            print(j)
             fig = plt.figure(figsize=(6,6))
             ax=fig.add_axes([0,0,0.7,0.7])
-
             q=np.random.uniform(0.5,1)
             chi1m=np.random.uniform(0,0.8)
             chi2m=np.random.uniform(0,0.8)
             theta1=np.arccos(np.random.uniform(-1,1))
             theta2=np.arccos(np.random.uniform(-1,1))
             deltaphi=np.random.uniform(-np.pi,np.pi)
-
             chi1,chi2=convert.anglestocoords(chi1m,chi2m,theta1,theta2,deltaphi,1.)
+            alpha_vals=np.linspace(-np.pi,np.pi,100)
 
-            #chimag=0.723
-            #chi1=[chimag,0,0]
-            #chi2=[-chimag,0,0]
+            tref_vals=[None]+list(np.linspace(-3500,-500,4))
+            for i,t_ref in enumerate(tref_vals):
+                print(j,t_ref)
+                color=plt.cm.copper(i/len(tref_vals))
+                ok=optkick(q=q,chi1=chi1,chi2=chi2,t_ref=t_ref)
+                ax.plot(alpha_vals,convert.kms(ok.phasesur(alpha_vals)),color=color)
 
+            ax.plot(alpha_vals,convert.kms(ok.phasefit(alpha_vals)),color='dodgerblue',lw=2.5,dashes=[8,3])
 
-            alpha_vals=np.linspace(-np.pi,np.pi,50)
-            ok=optkick(q=q,chi1=chi1,chi2=chi2)
-            ax.plot(alpha_vals,convert.kms(ok.phasefit(alpha_vals)),label='fit')
-            ax.plot(alpha_vals,convert.kms(ok.phasesur(alpha_vals)),label='sur')
 
             #fitmin,fitmax = ok.find(flag='fit')
             #ax.axhline(fitmin,c='C0',ls='dotted')
@@ -885,9 +883,9 @@ class plots(object):
             #
             ax.xaxis.set_minor_locator(AutoMinorLocator())
             ax.yaxis.set_minor_locator(AutoMinorLocator())
-            ax.legend(bbox_to_anchor=(1.05, 1),loc=2,bbox_transform=ax.transAxes, borderaxespad=0.)
+            #ax.legend(bbox_to_anchor=(1.05, 1),loc=2,bbox_transform=ax.transAxes, borderaxespad=0.)
 
-            ax.text(1.05,0.8,'$q='+str(round(q,2))+'$\n$\chi_1='+str(round(chi1m,2))+'$\n$\chi_2='+str(round(chi2m,2))+'$\n$\\theta_1='+str(round(theta1,2))+'$\n$\\theta_2='+str(round(theta2,2))+'$\n$\Delta\Phi='+str(round(deltaphi,2))+'$',verticalalignment='top',transform=ax.transAxes)
+            ax.text(1.05,1,'$q='+str(round(q,2))+'$\n$\chi_1='+str(round(chi1m,2))+'$\n$\chi_2='+str(round(chi2m,2))+'$\n$\\theta_1='+str(round(theta1,2))+'$\n$\\theta_2='+str(round(theta2,2))+'$\n$\Delta\Phi='+str(round(deltaphi,2))+'$',verticalalignment='top',transform=ax.transAxes)
 
             allfig.append(fig)
         return allfig
