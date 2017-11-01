@@ -901,10 +901,10 @@ if __name__ == "__main__":
     #plots.profiles()
     #plots.centerofmass()
     #plots.alphaseries()
-    #sk=bhbin()
-    #print(sk.times)
+    sk=bhbin()
+    print(sk.times)
 
-    plots.testoptimizer()
+    #plots.testoptimizer()
 
     #chi1=[0.4,-0.5,0.9]
     #chi2=[-0.4,0.5,-0.9]
