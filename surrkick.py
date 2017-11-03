@@ -11,6 +11,7 @@ from scipy.interpolate import InterpolatedUnivariateSpline as spline
 import NRSur7dq2
 from singleton_decorator import singleton
 import precession
+import h5py
 
 __author__ = "Davide Gerosa"
 __email__ = "dgerosa@caltech.edu"
@@ -891,6 +892,52 @@ class plots(object):
         return allfig
 
 
+    @classmethod
+    @plottingstuff
+    def kickdistr(self):
+
+        fig = plt.figure(figsize=(6,6))
+        ax=fig.add_axes([0,0,0.7,0.7])
+
+
+
+        f=h5py.File('kickdistr.h5')
+        dim=int(1e4)
+        kicks=[]
+        try:
+            kicks=list(f[f.keys()[0]])
+            dim=max(0, dim - len(kicks))
+        except:
+            f.create_dataset('kicks', data=kicks)
+        f.close()
+        print("dime", dim)
+
+        if dim>0:
+
+            for i in range(dim):
+                print(i,dim)
+                q=np.random.uniform(0.5,1)
+
+                phi = np.random.uniform(0,2*np.pi)
+                theta = np.arccos(np.random.uniform(-1,1))
+                r = 0.8*(np.random.uniform(0,1))**(1./3.)
+                chi1= [ r*np.sin(theta)*np.cos(phi), r*np.sin(theta)*np.sin(phi), r*np.cos(theta) ]
+                phi = np.random.uniform(0,2*np.pi)
+                theta = np.arccos(np.random.uniform(-1,1))
+                r = 0.8*(np.random.uniform(0,1))**(1./3.)
+                chi2= [ r*np.sin(theta)*np.cos(phi), r*np.sin(theta)*np.sin(phi), r*np.cos(theta) ]
+
+                sk= bhbin(q=q,chi1=chi1,chi2=chi2)
+                kicks.append(sk.kick)
+            f=h5py.File('kickdist.h5')
+            del f['kicks']
+            f.create_dataset('kicks', data=kicks)
+            f.close()
+
+        print(convert.kms(max(kicks)))
+
+        ax.hist(kicks,bins=100)
+        return fig
 
 
 ########################################
@@ -901,8 +948,12 @@ if __name__ == "__main__":
     #plots.profiles()
     #plots.centerofmass()
     #plots.alphaseries()
-    sk=bhbin()
-    print(sk.times)
+
+
+    #print(fitkick(0.5,1,-0.5,0,0,0,0))
+    #print(fitkick2(0.5,1,-0.5,0,0,0,0))
+
+    plots.kickdistr()
 
     #plots.testoptimizer()
 
