@@ -138,13 +138,18 @@ class surrogate(object):
 class bhbin(object):
     ''' Super class to contain info for a single binary evolution'''
 
-    def __init__(self,q=1,chi1=[0,0,0],chi2=[0,0,0],t_ref=None):
+    def __init__(self,q=1,chi1=[0,0,0],chi2=[0,0,0],t_ref=-100):
         self.sur=surrogate().sur() # Initialize the surrogate. Note it's a singleton
         self.q = max(q,1/q) # Make sure q>1 in this class, that's what the surrogate wants
         self.chi1 = np.array(chi1) # chi1 is the spin of the larger BH
         self.chi2 = np.array(chi2) # chi2 is the spin of the smaller BH
         self.times = self.sur.t_coorb # Short name for the time nodes
-        self.t_ref=t_ref
+
+        assert t_ref>=-4500 and t_ref<=-100
+        if t_ref==-4500:
+            self.t_ref = None
+        else:
+            self.t_ref=t_ref
 
         self._hsample = None
         self._hdotsample = None
@@ -699,17 +704,17 @@ class plots(object):
             chi1=[0,0,0]
             chi2=[0,0,0]
             sk = bhbin(q=q , chi1=chi1,chi2=chi2)
-
+            print(sk.times)
             x0,y0,z0=sk.xoft[sk.times==min(abs(sk.times))][0]
 
-            x,y,z=np.transpose(sk.xoft[np.logical_and(sk.times>-4500,sk.times<35)])
+            x,y,z=np.transpose(sk.xoft[np.logical_and(sk.times>-4000,sk.times<26)])
             ax.plot(x-x0,y-y0,z-z0)
             ax.scatter(0,0,0,marker='.',s=60,alpha=0.5)
 
             x,y,z=np.transpose(sk.xoft)
             vx,vy,vz=np.transpose(sk.voft)
 
-            for t in [-10,3,16,30]:
+            for t in [-10,3,12,17,24]:
                 i = np.abs(sk.times - t).argmin()
                 v=np.linalg.norm([vx[i],vy[i],vz[i]])
                 arrowsize=1e-4
@@ -717,7 +722,7 @@ class plots(object):
 
             ax.set_xlim(-0.004,0.0045)
             ax.set_ylim(-0.0025,0.006)
-            ax.set_zlim(-0.003,0.0055)
+            ax.set_zlim(-0.006,0.0035)
 
             #ax.set_title('$q='+str(q)+'\;\;\chi_1='+str(chi1)+'\;\;\chi_2='+str(chi2)+'$')
             ax.set_xticklabels(ax.get_xticks(), fontsize=11)
@@ -1177,11 +1182,14 @@ class plots(object):
 if __name__ == "__main__":
 
 
-    plots.hangup()
+    #for t_ref in np.linspace(-4500,-100,10):
+    #    print(bhbin(t_ref=t_ref).kick)
+
+    #plots.hangup()
     #plots.nonspinning()
     #plots.residuals()
     #plots.profiles()
-    #plots.centerofmass()
+    plots.centerofmass()
     #plots.alphaseries()
     #plots.centerofmass()
     #plots.nospinprofiles()
