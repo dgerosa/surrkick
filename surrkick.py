@@ -1268,7 +1268,7 @@ class plots(object):
 
 
         f=h5py.File('kickdistr.h5')
-        dim=int(1e5)
+        dim=int(10)
         kicks=[]
         try:
             kicks=list(f[f.keys()[0]])
@@ -1294,11 +1294,12 @@ class plots(object):
                 chi2= [ r*np.sin(theta)*np.cos(phi), r*np.sin(theta)*np.sin(phi), r*np.cos(theta) ]
 
                 sk= bhbin(q=q,chi1=chi1,chi2=chi2)
-                kicks.append(sk.kick)
+                data.append([q,chi1,chi2,sk.kick)]
+
 
             f=h5py.File('kickdistr.h5')
-            del f['kicks']
-            f.create_dataset('kicks', data=kicks)
+            del f['data']
+            f.create_dataset('data', data=kicks)
             f.close()
 
         print(convert.kms(max(kicks)))
@@ -1418,7 +1419,9 @@ class plots(object):
 
             figs.append(fig)
 
-        return figs
+        return []
+
+
 
 
 
@@ -1426,7 +1429,7 @@ class plots(object):
 if __name__ == "__main__":
 
     #plots.lineofsight()
-
+    plots.kickdistr()
     plots.alphaprof()
     #plots.centerofmass()
     #plots.alpharies()
