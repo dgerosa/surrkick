@@ -728,7 +728,7 @@ class plots(object):
             ax.set_xticklabels(ax.get_xticks(), fontsize=11)
             ax.set_yticklabels(ax.get_yticks(), fontsize=11)
             ax.set_zticklabels(ax.get_zticks(), fontsize=11)
-            fig.text(0.06,0.57,'$q='+str(q)+'$\n$\chi_1=0$\n$\chi_2=0$',transform=fig.transFigure)
+            fig.text(0.38,0.45,'$q='+str(q)+'$\n$\\chi_1=0$\n${\\chi_2}=0$',transform=fig.transFigure)
 
             ax.set_xlabel("$x\;\;[M]$")
             ax.set_ylabel("$y\;\;[M]$")
@@ -743,37 +743,49 @@ class plots(object):
 
             allfig.append(fig)
 
-        if False:
+
+        if True:
             fig = plt.figure(figsize=(6,6))
             ax=fig.add_axes([0,0,0.7,0.7], projection='3d')
 
-            q=1
+            q=0.5
             chi1=[0.8,0,0]
             chi2=[-0.8,0,0]
             sk = bhbin(q=q , chi1=chi1, chi2=chi2)
 
             x0,y0,z0=sk.xoft[sk.times==min(abs(sk.times))][0]
 
-            x,y,z=np.transpose(sk.xoft[np.logical_and(sk.times>-1000,sk.times<19)])
+            x,y,z=np.transpose(sk.xoft[np.logical_and(sk.times>-3500,sk.times<16)])
             ax.plot(x-x0,y-y0,z-z0)
 
             ax.scatter(0,0,0,marker='.',s=40,alpha=0.5)
             x,y,z=np.transpose(sk.xoft)
             vx,vy,vz=np.transpose(sk.voft)
-            for t in [2,5,7]:
+            for t in [-20,-3,3,3,10,14]:
                 i = np.abs(sk.times - t).argmin()
                 v=np.linalg.norm([vx[i],vy[i],vz[i]])
                 arrowsize=2e-3
-                ax.quiver(x[i]-x0,y[i]-y0,z[i]-z0,vx[i]*arrowsize/v,vy[i]*arrowsize/v,vz[i]*arrowsize/v,length=0.0001,arrow_length_ratio=9000,alpha=0.5)
+                ax.quiver(x[i]-x0,y[i]-y0,z[i]-z0,vx[i]*arrowsize/v,vy[i]*arrowsize/v,vz[i]*arrowsize/v,length=0.00001,arrow_length_ratio=30000,alpha=0.5)
 
-            ax.set_xlim(-0.01,0.01)
-            ax.set_ylim(-0.01,0.01)
-            ax.set_zlim(-0.01,0.01)
+            ax.set_xlim(-0.005,0.005)
+            ax.set_ylim(-0.005,0.005)
+            ax.set_zlim(-0.005,0.005)
 
-            ax.set_title('$q='+str(q)+'\;\;\chi_1='+str(chi1)+'\;\;\chi_2='+str(chi2)+'$')
-            ax.set_xticklabels(ax.get_xticks(), fontsize=13)
-            ax.set_yticklabels(ax.get_yticks(), fontsize=13)
-            ax.set_zticklabels(ax.get_zticks(), fontsize=13)
+            ax.set_xticklabels(ax.get_xticks(), fontsize=11)
+            ax.set_yticklabels(ax.get_yticks(), fontsize=11)
+            ax.set_zticklabels(ax.get_zticks(), fontsize=11)
+            fig.text(0.1,0.4,'$q='+str(q)+'$\n$\\boldsymbol{\\chi_1}=[0.8,0,0]$\n$\\boldsymbol{\\chi_2}=[-0.8,0,0]$',transform=fig.transFigure)
+
+            ax.set_xlabel("$x\;\;[M]$")
+            ax.set_ylabel("$y\;\;[M]$")
+            ax.set_zlabel("$z\;\;[M]$")
+            ax.xaxis.labelpad=6
+            ax.yaxis.labelpad=8
+            ax.zaxis.labelpad=4
+
+            ax.xaxis.set_minor_locator(AutoMinorLocator())
+            ax.yaxis.set_minor_locator(AutoMinorLocator())
+            ax.zaxis.set_minor_locator(AutoMinorLocator())
 
             allfig.append(fig)
 
@@ -825,33 +837,68 @@ class plots(object):
         ''' Attempt to reproduce Fig 4  in Brugmann+ 2008, their alpha series'''
 
         fig = plt.figure(figsize=(6,6))
-        ax=fig.add_axes([0,0,0.7,0.7])
+        L=0.7
+        H=0.3
+        S=0.05
+        axs = [fig.add_axes([i*(S+L),0,L,H]) for i in [0,1]]
 
-        chi_vals= np.linspace(0,0.8,9)
-        for i,chimag in enumerate(chi_vals):
-            print(chimag)
-            color=plt.cm.copper(i/len(chi_vals))
+        dim=100
 
-            #chimag=0.723
-            alpha_vals=np.linspace(0,2.*np.pi,50)
-            kick_vals=[]
-            for alpha in alpha_vals:
-                sk = bhbin(q=1 , chi1=[chimag*np.cos(alpha),chimag*np.sin(alpha),0],chi2=[-chimag*np.cos(alpha),-chimag*np.sin(alpha),0])
-                kick_vals.append(convert.kms(sk.kickcomp[-1]))
+        #chi_vals= np.linspace(0,0.8,9)
+        chimag=0.8
 
-            ax.plot(alpha_vals,kick_vals,color=color)
-            #ax.plot(alpha_vals,2725*np.cos(0.98*np.pi+alpha_vals))
+        tref_vals=np.linspace(-250,-100,dim)
+        kick_vals=[]
+
+        for t_ref in tqdm(tref_vals):
+            sk = bhbin(q=1 , chi1=[chimag,0,0],chi2=[-chimag,0,0],t_ref=t_ref)
+            kick_vals.append(sk.kick)
+            #print(t_ref,sk.kick)
+        axs[0].plot(tref_vals,1/0.001*np.array(kick_vals))
+        axs[0].scatter(-125,1/0.001*bhbin(q=1 , chi1=[chimag,0,0],chi2=[-chimag,0,0],t_ref=-125).kick,marker='o',edgecolor='C1',facecolor='none',s=100,linewidth='2')
 
 
-        ax.set_xlim(0,2.*np.pi)
-        ax.set_ylim(-3000,3000)
-        ax.set_xlabel("$\\alpha$")
-        ax.set_ylabel("$\mathbf{v}(t)\cdot \hat\mathbf{z} \;\;[{\\rm km/s}]$")
-        ax.set_xticks([0,np.pi/2,np.pi,3*np.pi/2,2*np.pi])
-        ax.set_xticklabels(['$0$','$\pi/2$','$\pi$','$3\pi/2$','$2\pi$'])
+        alpha_vals=np.linspace(-np.pi,np.pi,dim)
 
-        ax.xaxis.set_minor_locator(AutoMinorLocator())
-        ax.yaxis.set_minor_locator(AutoMinorLocator())
+        kick_vals=[]
+        for alpha in tqdm(alpha_vals):
+            sk = bhbin(q=1 , chi1=[chimag*np.cos(alpha),chimag*np.sin(alpha),0],chi2=[-chimag*np.cos(alpha),-chimag*np.sin(alpha),0])
+            kick_vals.append(sk.kick)
+
+        axs[1].plot(alpha_vals,1/0.001*np.array(kick_vals),c='C3')
+
+        axs[0].text(0.05,0.5,'$q=1$\n$\chi_1=\chi_2=0.8$\n$\\alpha=0$',transform=axs[0].transAxes,linespacing=1.4)
+        axs[1].text(0.05,0.5,'$q=1$\n$\chi_1=\chi_2=0.8$\n$t_{\\rm ref}=-100M$',transform=axs[1].transAxes,linespacing=1.4)
+
+
+        axs[1].set_yticklabels([])
+        #     #chimag=0.723
+        #     alpha_vals=np.linspace(0,2.*np.pi,50)
+        #     kick_vals=[]
+        #     for alpha in alpha_vals:
+        #         sk = bhbin(q=1 , chi1=[chimag*np.cos(alpha),chimag*np.sin(alpha),0],chi2=[-chimag*np.cos(alpha),-chimag*np.sin(alpha),0])
+        #         kick_vals.append(convert.kms(sk.kickcomp[-1]))
+        #
+        #     ax.plot(alpha_vals,kick_vals,color=color)
+        #     #ax.plot(alpha_vals,2725*np.cos(0.98*np.pi+alpha_vals))
+        #
+        #
+
+        axs[0].set_xlabel("$t_{\\rm ref}\;\;[M]$")
+
+
+        axs[1].set_xlim(-1.1*np.pi,1.1*np.pi)
+        axs[1].set_xlabel("$\\alpha$")
+        axs[1].set_xticks([-np.pi,-np.pi/2,0,np.pi/2,np.pi])
+        axs[1].set_xticklabels(['$-\pi$','$-\pi/2$','$0$','$\pi/2$','$\pi$'])
+
+
+        axs[0].set_ylabel("${v_k} \;\;[0.001 c]$")
+        #
+        for ax in axs:
+            ax.set_ylim(0,10)
+            ax.xaxis.set_minor_locator(AutoMinorLocator())
+            ax.yaxis.set_minor_locator(AutoMinorLocator())
 
         return fig
 
@@ -861,11 +908,13 @@ class plots(object):
         ''' Attempt to reproduce Fig 4  in Brugmann+ 2008, their alpha series'''
 
         fig = plt.figure(figsize=(6,6))
-        ax=fig.add_axes([0,0,0.7,0.7])
-        chimag=0.8
+        ax=fig.add_axes([0,0,0.7,0.3])
+        chimag=0.5
 
+        ax.axvline(0,c='black',alpha=0.3,ls='dotted')
+        ax.axhline(0,c='black',alpha=0.3,ls='dotted')
 
-        alpha_vals=np.linspace(0,np.pi,30)
+        alpha_vals=np.linspace(-np.pi,np.pi,50)
         kick_vals=[]
         for i, alpha in tqdm(enumerate(alpha_vals)):
             sk = bhbin(q=1, chi1=[chimag*np.cos(alpha),chimag*np.sin(alpha),0],chi2=[-chimag*np.cos(alpha),-chimag*np.sin(alpha),0])
@@ -874,36 +923,100 @@ class plots(object):
 
             #kick_vals.append(convert.kms(sk.kickcomp[-1]))
 
-            ax.plot(sk.times,project(sk.voft,sk.kickdir),color=color,alpha=0.8)
+            ax.plot(sk.times,1/0.001*project(sk.voft,sk.kickdir),color=color,alpha=0.8)
             #ax.plot(alpha_vals,2725*np.cos(0.98*np.pi+alpha_vals))
 
 
         ax.set_xlim(-100,50)
         #ax.set_ylim(-3000,3000)
-        #ax.set_xlabel("$\\alpha$")
-        #ax.set_ylabel("$\mathbf{v}(t)\cdot \hat\mathbf{z} \;\;[{\\rm km/s}]$")
+        ax.set_xlabel("$t\;\;[M]$")
+        ax.set_ylabel("$\mathbf{v}(t)\cdot \mathbf{\hat v_k} \;\;[0.001 c]$")
         #ax.set_xticks([0,np.pi/2,np.pi,3*np.pi/2,2*np.pi])
         #ax.set_xticklabels(['$0$','$\pi/2$','$\pi$','$3\pi/2$','$2\pi$'])
 
         ax.xaxis.set_minor_locator(AutoMinorLocator())
         ax.yaxis.set_minor_locator(AutoMinorLocator())
+        ax.text(0.05,0.55,'$q=1$\n$\chi_1=\chi_2=0.8$\n$\\alpha=-\pi ... \pi$',transform=ax.transAxes,linespacing=1.4)
 
         return fig
 
     @classmethod
     @plottingstuff
-    def hangup(self):
+    def lineofsight(self):
         ''' Attempt to reproduce Fig 4  in Brugmann+ 2008, their alpha series'''
 
         figs=[]
+        L=0.7
+        H=0.6
+        S=0.05
+
+
+
+        for q in [0.5]:
+
+            fig = plt.figure(figsize=(6,6))
+            ax = fig.add_axes([0,0,L,H])
+            ax.axhline(0,c='black',alpha=0.3,ls='dotted')
+
+            chimag=0.8
+            sk= bhbin(q=q,chi1=[0,0,chimag],chi2=[0,0,-chimag],t_ref=-100)
+
+            store=[]
+            dim=15
+            for i in tqdm(np.linspace(0,1,dim)):
+
+
+                phi = np.random.uniform(0,2*np.pi)
+                theta = np.arccos(np.random.uniform(-1,1))
+                randomvec= [np.sin(theta)*np.cos(phi), np.sin(theta)*np.sin(phi), np.cos(theta) ]
+                #print(randomvec)
+                store.append([randomvec,project(sk.voft,randomvec)[-1]])
+
+            #for x in store:
+            #    print(x)
+
+            store=sorted(store, key=lambda x:x[1])
+            #for x in store:
+            #    print(x)
+
+            for i,rv in tqdm(zip(np.linspace(0,1,dim),[x[0] for x in store])):
+                color=plt.cm.copper(i)
+                #print(rv)
+                ax.plot(sk.times,1./0.001*project(sk.voft,rv),c=color,alpha=0.8)
+            #
+            # axs[2].legend(loc="lower left",fontsize=14,ncol=2,handlelength=3.86)
+            ax.text(0.05,0.75,'$q='+str(q)+'$\n$\chi_1=\chi_2=0.8$\n right-left',transform=ax.transAxes,linespacing=1.4)
+            # for ax in axs:
+            ax.set_xlim(-50,50)
+            ax.yaxis.set_major_locator(MultipleLocator(0.5))
+            ax.yaxis.set_minor_locator(MultipleLocator(0.1))
+            ax.xaxis.set_minor_locator(AutoMinorLocator())
+            #
+            # for ax in axs[:-1]:
+            #     ax.set_xticklabels([])
+            # for ax in [axs[-1]]:
+            ax.set_xlabel("$t\;\;[M]$")
+            # for ax,d in zip(axs,["x","y","z","v_k"]):
+            #     ax.set_ylim(-1.4,1.4)
+            ax.set_ylabel("$\mathbf{v}(t) \cdot \mathbf{\hat n} \;\;[0.001c]$")
+
+            figs.append(fig)
+
+        return figs
+
+    @classmethod
+    @plottingstuff
+    def spinaligned(self):
+        ''' Attempt to reproduce Fig 4  in Brugmann+ 2008, their alpha series'''
+
+        figs=[]
+        L=0.7
+        H=0.3
+        S=0.05
 
         for q in [1,0.5]:
 
             fig = plt.figure(figsize=(6,6))
-            L=0.7
-            H=0.3
-            S=0.05
-
             axs = [fig.add_axes([0,-i*(S+H),L,H]) for i in [0,1,2,3]]
 
             chimag=0.8
@@ -944,7 +1057,138 @@ class plots(object):
                 ax.set_ylabel("$\mathbf{v}(t) \cdot \mathbf{\hat "+d+"} \;\;[0.001c]$")
 
             figs.append(fig)
+
         return figs
+
+
+
+    @classmethod
+    @plottingstuff
+    def hangupErad(self):
+        ''' Attempt to reproduce Fig 4  in Brugmann+ 2008, their alpha series'''
+
+        figs=[]
+        L=0.7
+        H=0.35
+        S=0.05
+
+        for q in [0.5]:
+
+            fig = plt.figure(figsize=(6,6))
+            ax = fig.add_axes([0,0,L,H])
+
+            chimag=0.8
+            sks=[ bhbin(q=q,chi1=[0,0,chimag],chi2=[0,0,chimag]),
+                bhbin(q=q,chi1=[0,0,-chimag],chi2=[0,0,-chimag]),
+                bhbin(q=q,chi1=[0,0,chimag],chi2=[0,0,-chimag]),
+                bhbin(q=q, chi1=[0,0,-chimag],chi2=[0,0,chimag]),
+                bhbin(q=q, chi1=[0,0,0],chi2=[0,0,0])]
+
+
+            labels=["$\chi_i\!=\!0.8$, up-up","$\chi_i\!=\!0.8$, down-down","$\chi_i\!=\!0.8$, up-down","$\chi_i\!=\!0.8$, down-up","$\chi_i=0$"]
+            dashes=['',[15,5],[8,5],[2,2],[0.5,1]]
+            cols=['C0','C1','C2','C3','black']
+            for sk,l,d,c in zip(sks,labels,dashes,cols):
+                ax.plot(sk.times,sk.Eoft,alpha=0.4,lw=1,c=c)
+                ax.plot(sk.times,sk.Eoft,alpha=1,lw=2,c=c,dashes=d,label=l)
+            #
+            ax.legend(loc="upper left",fontsize=11,handlelength=5.5)
+            ax.text(0.8,0.1,'$q='+str(q)+'$',transform=ax.transAxes,linespacing=1.4)
+            # for ax in axs:
+            ax.set_xlim(-50,50)
+            ax.yaxis.set_minor_locator(AutoMinorLocator())
+            ax.xaxis.set_minor_locator(AutoMinorLocator())
+
+            # for ax in axs[:-1]:
+            #     ax.set_xticklabels([])
+            # for ax in [axs[-1]]:
+            ax.set_xlabel("$t\;\;[M]$")
+            # for ax,d in zip(axs,["x","y","z","v_k"]):
+            ax.set_ylim(0,0.08)
+            ax.set_ylabel("${E(t)} \;\;[M]$")
+
+            figs.append(fig)
+
+        return figs
+
+
+    @classmethod
+    @plottingstuff
+    def leftright(self):
+        ''' Attempt to reproduce Fig 4  in Brugmann+ 2008, their alpha series'''
+
+        figs=[]
+        L=0.7
+        H=0.3
+        S=0.05
+        Z=0.35
+
+        for q in [1,0.5]:
+
+            fig = plt.figure(figsize=(6,6))
+            axs = [fig.add_axes([0,-i*(S+H),L,H]) for i in [0,1,2,3]]
+            axi = fig.add_axes([0,-1*(S+H)-S-Z*H,Z*L*1.2,Z*H])
+
+            chimag1=0.8
+            chimag2=0.8
+            sks=[ bhbin(q=q,chi1=[chimag1,0,0],chi2=[chimag2,0,0],t_ref=-125),
+            bhbin(q=q,chi1=[-chimag1,0,0],chi2=[-chimag2,0,0],t_ref=-125),
+            bhbin(q=q,chi1=[chimag1,0,0],chi2=[-chimag2,0,0],t_ref=-125),
+            bhbin(q=q, chi1=[-chimag1,0,0],chi2=[chimag2,0,0],t_ref=-125)]
+
+
+            labels=["right-right","left-left","right-left","left-right"]
+            dashes=['',[15,5],[8,5],[2,2]]
+            cols=['C0','C1','C2','C3']
+            for sk,l,d,c in zip(sks,labels,dashes,cols):
+                axs[0].plot(sk.times,1./0.001*project(sk.voft,[1,0,0]),alpha=0.4,lw=1,c=c)
+                axs[0].plot(sk.times,1./0.001*project(sk.voft,[1,0,0]),alpha=1,lw=2,c=c,dashes=d)
+                axs[1].plot(sk.times,1./0.001*project(sk.voft,[0,1,0]),alpha=0.4,lw=1,c=c)
+                axs[1].plot(sk.times,1./0.001*project(sk.voft,[0,1,0]),alpha=1,lw=2,c=c,dashes=d,label=l)
+                for ax in [axs[2],axi]:
+                    ax.plot(sk.times,1./0.001*project(sk.voft,[0,0,1]),alpha=0.4,lw=1,c=c)
+                    ax.plot(sk.times,1./0.001*project(sk.voft,[0,0,1]),alpha=1,lw=2,c=c,dashes=d)
+                axs[3].plot(sk.times,1./0.001*project(sk.voft,sk.kickdir),alpha=0.4,lw=1,c=c)
+                axs[3].plot(sk.times,1./0.001*project(sk.voft,sk.kickdir),alpha=1,lw=2,c=c,dashes=d)
+
+
+
+                print(l,convert.kms(sk.kick),convert.kms(sk.kickcomp))
+
+            axs[1].legend(loc="lower left",fontsize=14,ncol=2,handlelength=3.86)
+            axs[0].text(0.05,0.7,'$q='+str(q)+'$\n$\chi_1=\chi_2=0.8$',transform=axs[    0].transAxes,linespacing=1.4)
+            for ax in axs:
+                ax.set_xlim(-50,50)
+                ax.yaxis.set_major_locator(MultipleLocator(5))
+                ax.yaxis.set_minor_locator(MultipleLocator(1))
+                ax.xaxis.set_minor_locator(AutoMinorLocator())
+
+            for ax in axs[:-1]:
+                ax.set_xticklabels([])
+            for ax in [axs[-1]]:
+                ax.set_xlabel("$t\;\;[M]$")
+            for ax,d in zip(axs,["x","y","z","v_k"]):
+                ax.set_ylim(-10,10)
+                ax.set_ylabel("$\mathbf{v}(t) \cdot \mathbf{\hat "+d+"} \;\;[0.001c]$")
+
+            axi.set_xlim(-450,-150)
+            axi.set_ylim(-0.02,0.02)
+            axi.yaxis.tick_right()
+
+            axi.set_xticks([-400,-300,-200])
+            axi.set_yticks([-0.015,0,0.015])
+            axi.set_yticklabels(axi.get_yticks(),fontsize=8)
+            axi.xaxis.set_tick_params(pad=1)
+            axi.set_xticklabels(axi.get_xticks(),fontsize=8)
+            axi.yaxis.set_tick_params(pad=1)
+            axi.yaxis.set_ticks_position('right')
+            axi.xaxis.set_ticks_position('bottom')
+
+
+            figs.append(fig)
+
+        return figs
+
 
 
 
@@ -1181,15 +1425,22 @@ class plots(object):
 ########################################
 if __name__ == "__main__":
 
+    #plots.lineofsight()
 
+    plots.alphaprof()
+    #plots.centerofmass()
+    #plots.alpharies()
     #for t_ref in np.linspace(-4500,-100,10):
-    #    print(bhbin(t_ref=t_ref).kick)
+    #    print(bhbin(q=1,chi1=[0.8,0,0],chi2=[-0.8,0,0],t_ref=t_ref).kick)
+    #print(convert.kms(bhbin(q=0.5,chi1=[0,0,0],chi2=[0,0,0],t_ref=-100).kick))
+    #plots.hangupErad()
 
+    #plots.leftright()
     #plots.hangup()
     #plots.nonspinning()
     #plots.residuals()
     #plots.profiles()
-    plots.centerofmass()
+    #plots.centerofmass()
     #plots.alphaseries()
     #plots.centerofmass()
     #plots.nospinprofiles()
