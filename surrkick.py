@@ -15,7 +15,7 @@ import precession
 import h5py
 from tqdm import tqdm
 import cPickle as pickle
-
+import multiprocessing, pathos.multiprocessing
 
 __author__ = "Davide Gerosa"
 __email__ = "dgerosa@caltech.edu"
@@ -426,7 +426,7 @@ def fitkick(q,chi1m,chi2m,theta1,theta2,deltaphi,bigTheta):
     hatS1 = np.array([np.sin(theta1),0,np.cos(theta1)])
     hatS2 = np.array([np.sin(theta2)*np.cos(deltaphi),np.sin(theta2)*np.sin(deltaphi),np.cos(theta2)])
     #Useful spin combinations.
-    Delta = (q*chi2m*hatS2-chi1m*hatS1)/(1.+q)
+    Delta = -(q*chi2m*hatS2-chi1m*hatS1)/(1.+q)
     Delta_par = np.dot(Delta,hatL)
     Delta_perp = np.linalg.norm(np.cross(Delta,hatL))
     chit = (q*q*chi2m*hatS2+chi1m*hatS1)/pow(1.+q,2.)
@@ -534,6 +534,8 @@ class plots(object):
 
         #def wrapper(*args, **kw):
         def wrapper(self):
+
+            self.map = pathos.multiprocessing.ProcessingPool(multiprocessing.cpu_count()).imap
 
             # Before function call
             global plt,AutoMinorLocator,MultipleLocator
@@ -725,14 +727,14 @@ class plots(object):
             ax.set_zlim(-0.006,0.0035)
 
             #ax.set_title('$q='+str(q)+'\;\;\chi_1='+str(chi1)+'\;\;\chi_2='+str(chi2)+'$')
-            ax.set_xticklabels(ax.get_xticks(), fontsize=11)
-            ax.set_yticklabels(ax.get_yticks(), fontsize=11)
-            ax.set_zticklabels(ax.get_zticks(), fontsize=11)
-            fig.text(0.38,0.45,'$q='+str(q)+'$\n$\\chi_1=0$\n${\\chi_2}=0$',transform=fig.transFigure)
+            ax.set_xticklabels(ax.get_xticks(), fontsize=9)
+            ax.set_yticklabels(ax.get_yticks(), fontsize=9)
+            ax.set_zticklabels(ax.get_zticks(), fontsize=9)
+            fig.text(0.38,0.45,'$q='+str(q)+'$\n$\\chi_1=0$\n${\\chi_2}=0$\n$v_k='+str(int(convert.kms(sk.kick)))+'{\\rm \;km/s}$',transform=fig.transFigure)
 
-            ax.set_xlabel("$x\;\;[M]$")
-            ax.set_ylabel("$y\;\;[M]$")
-            ax.set_zlabel("$z\;\;[M]$")
+            ax.set_xlabel("$x\;\;[M]$",fontsize=13)
+            ax.set_ylabel("$y\;\;[M]$",fontsize=13)
+            ax.set_zlabel("$z\;\;[M]$",fontsize=13)
             ax.xaxis.labelpad=6
             ax.yaxis.labelpad=8
             ax.zaxis.labelpad=4
@@ -771,14 +773,14 @@ class plots(object):
             ax.set_ylim(-0.005,0.005)
             ax.set_zlim(-0.005,0.005)
 
-            ax.set_xticklabels(ax.get_xticks(), fontsize=11)
-            ax.set_yticklabels(ax.get_yticks(), fontsize=11)
-            ax.set_zticklabels(ax.get_zticks(), fontsize=11)
-            fig.text(0.1,0.4,'$q='+str(q)+'$\n$\\boldsymbol{\\chi_1}=[0.8,0,0]$\n$\\boldsymbol{\\chi_2}=[-0.8,0,0]$',transform=fig.transFigure)
+            ax.set_xticklabels(ax.get_xticks(), fontsize=9)
+            ax.set_yticklabels(ax.get_yticks(), fontsize=9)
+            ax.set_zticklabels(ax.get_zticks(), fontsize=9)
+            fig.text(0.1,0.4,'$q='+str(q)+'$\n$\\boldsymbol{\\chi_1}=[0.8,0,0]$\n$\\boldsymbol{\\chi_2}=[-0.8,0,0]$\n$v_k='+str(int(convert.kms(sk.kick)))+'{\\rm \;km/s}$',transform=fig.transFigure)
 
-            ax.set_xlabel("$x\;\;[M]$")
-            ax.set_ylabel("$y\;\;[M]$")
-            ax.set_zlabel("$z\;\;[M]$")
+            ax.set_xlabel("$x\;\;[M]$",fontsize=13)
+            ax.set_ylabel("$y\;\;[M]$",fontsize=13)
+            ax.set_zlabel("$z\;\;[M]$",fontsize=13)
             ax.xaxis.labelpad=6
             ax.yaxis.labelpad=8
             ax.zaxis.labelpad=4
@@ -791,38 +793,66 @@ class plots(object):
 
 
 
-
-        if False:
+        if True:
             fig = plt.figure(figsize=(6,6))
             ax=fig.add_axes([0,0,0.7,0.7], projection='3d')
 
-            q=0.8
-            chi1=[0.8,0,0]
-            chi2=[-0.8,0,0]
+            q=1
+            chi1=[0.81616392, 0.01773234, 0.57754829]
+            chi1=np.array(chi1)*0.8/np.linalg.norm(chi1)
+            chi2=[-0.87810809, 0.06485156, 0.47404689]
+            chi2=np.array(chi2)*0.8/np.linalg.norm(chi2)
+
             sk = bhbin(q=q , chi1=chi1, chi2=chi2)
 
             x0,y0,z0=sk.xoft[sk.times==min(abs(sk.times))][0]
 
-            x,y,z=np.transpose(sk.xoft[np.logical_and(sk.times>-1000,sk.times<19)])
+
+            x,y,z=np.transpose(sk.xoft[np.logical_and(sk.times>-4500,sk.times<7.2)])
             ax.plot(x-x0,y-y0,z-z0)
 
             ax.scatter(0,0,0,marker='.',s=40,alpha=0.5)
             x,y,z=np.transpose(sk.xoft)
             vx,vy,vz=np.transpose(sk.voft)
-            for t in [-900,-50,-10,-5,-2,2,5,6,18]:
+            for t in [-9,3,4]:
                 i = np.abs(sk.times - t).argmin()
                 v=np.linalg.norm([vx[i],vy[i],vz[i]])
-                arrowsize=1e-4
-                ax.quiver(x[i]-x0,y[i]-y0,z[i]-z0,vx[i]*arrowsize/v,vy[i]*arrowsize/v,vz[i]*arrowsize/v,length=0.0001,arrow_length_ratio=9000,alpha=0.5)
+                arrowsize=2e-3
+                ax.quiver(x[i]-x0,y[i]-y0,z[i]-z0,vx[i]*arrowsize/v,vy[i]*arrowsize/v,vz[i]*arrowsize/v,length=0.00001,arrow_length_ratio=30000,alpha=0.5)
 
-            ax.set_xlim(-0.0008,0.0008)
-            ax.set_ylim(-0.0008,0.0008)
-            ax.set_zlim(-0.0008,0.0008)
+            ax.set_xlim(-0.006,0.005)
+            ax.set_ylim(-0.006,0.005)
+            ax.set_zlim(0,0.011)
 
-            ax.set_title('$q='+str(q)+'\;\;\chi_1='+str(chi1)+'\;\;\chi_2='+str(chi2)+'$')
-            ax.set_xticklabels(ax.get_xticks(), fontsize=13)
-            ax.set_yticklabels(ax.get_yticks(), fontsize=13)
-            ax.set_zticklabels(ax.get_zticks(), fontsize=13)
+            ax.set_xticklabels(ax.get_xticks(), fontsize=9)
+            ax.set_yticklabels(ax.get_yticks(), fontsize=9)
+            ax.set_zticklabels(ax.get_zticks(), fontsize=9)
+
+            fig.text(0.09,0.45,'$q='+str(q)+'$\n$\\boldsymbol{\\chi_1}=['+
+                str(round(chi1[0],2))+','+str(round(chi1[1],2))+','+str(round(chi1[2],2))+
+                ']$\n$\\boldsymbol{\\chi_2}=['+
+                str(round(chi2[0],2))+','+str(round(chi2[1],2))+','+str(round(chi2[2],2))+
+                ']$\n$v_k='+str(int(convert.kms(sk.kick)))+'{\\rm \;km/s}$',transform=fig.transFigure)
+
+            ax.set_xlabel("$x\;\;[M]$",fontsize=13)
+            ax.set_ylabel("$y\;\;[M]$",fontsize=13)
+            ax.set_zlabel("$z\;\;[M]$",fontsize=13)
+            ax.xaxis.labelpad=6
+            ax.yaxis.labelpad=8
+            ax.zaxis.labelpad=4
+
+            #ax.xaxis.set_minor_locator(AutoMinorLocator())
+            #ax.yaxis.set_minor_locator(AutoMinorLocator())
+            #ax.zaxis.set_minor_locator(AutoMinorLocator())
+
+
+            #ax.view_init(45,135)
+
+            #for ii in xrange(0,360,5):
+            #    print(ii)
+            #    ax.view_init(elev=45., azim=ii)
+            #    fig.savefig("movie%d.png" % ii)
+
 
 
             allfig.append(fig)
@@ -1185,6 +1215,7 @@ class plots(object):
             axi.xaxis.set_ticks_position('bottom')
 
 
+
             figs.append(fig)
 
         return figs
@@ -1258,72 +1289,63 @@ class plots(object):
         return allfig
 
 
+
+
     @classmethod
-    @plottingstuff
-    def kickdistr(self):
+    def findlarge(self):
 
-        fig = plt.figure(figsize=(6,6))
-        ax=fig.add_axes([0,0,0.7,0.7])
+        dim=int(1e5)
 
+        if not os.path.isfile("findlarge.pkl"):
 
-
-        f=h5py.File('kickdistr.h5')
-        dim=int(10)
-        kicks=[]
-        try:
-            kicks=list(f[f.keys()[0]])
-            dim=max(0, dim - len(kicks))
-        except:
-            f.create_dataset('kicks', data=kicks)
-        f.close()
-        print("dime", dim)
-
-        if dim>0:
-
-            for i in tqdm(range(dim)):
-                #print(i,dim)
-                q=np.random.uniform(0.5,1)
-
+            def _kickdistr(i):
+                np.random.seed()
+                #q=np.random.uniform(0.5,1)
+                q=1
                 phi = np.random.uniform(0,2*np.pi)
                 theta = np.arccos(np.random.uniform(-1,1))
-                r = 0.8*(np.random.uniform(0,1))**(1./3.)
+                #r = 0.8*(np.random.uniform(0,1))**(1./3.)
+                r=0.8
                 chi1= [ r*np.sin(theta)*np.cos(phi), r*np.sin(theta)*np.sin(phi), r*np.cos(theta) ]
                 phi = np.random.uniform(0,2*np.pi)
                 theta = np.arccos(np.random.uniform(-1,1))
-                r = 0.8*(np.random.uniform(0,1))**(1./3.)
+                #r = 0.8*(np.random.uniform(0,1))**(1./3.)
+                r=0.8
                 chi2= [ r*np.sin(theta)*np.cos(phi), r*np.sin(theta)*np.sin(phi), r*np.cos(theta) ]
-
                 sk= bhbin(q=q,chi1=chi1,chi2=chi2)
-                data.append([q,chi1,chi2,sk.kick)]
+                return [q,chi1,chi2,sk.kick]
 
+            data= list(tqdm(self.map(_kickdistr, range(dim)),total=dim))
 
-            f=h5py.File('kickdistr.h5')
-            del f['data']
-            f.create_dataset('data', data=kicks)
-            f.close()
+            with open("findlarge.pkl", 'wb') as f: pickle.dump(zip(*data), f)
+        with open("findlarge.pkl", 'rb') as f: q,chi1,chi2,kicks = pickle.load(f)
 
-        print(convert.kms(max(kicks)))
+        mk=max(kicks)
+        maxind= kicks==mk
+        print(mk,convert.kms(mk))
+        chi1m= np.array(chi1)[maxind][0]/0.8
+        chi2m= np.array(chi2)[maxind][0]/0.8
+        print(chi1m, np.degrees(np.arccos(chi1m[-1])))
+        print(chi2m, np.degrees(np.arccos(chi2m[-1])))
 
-        ax.hist(kicks,bins=100)
-        return fig
+        return []
 
     @classmethod
     @plottingstuff
     def normprofiles(self):
 
-        fig = plt.figure(figsize=(6,6))
-        ax=fig.add_axes([0,0,0.7,0.7])
-        #ax2=fig.add_axes([1,0,0.7,0.7])
 
 
-        levels = np.linspace(0,0.0016,100)
+        levels = np.linspace(0,1.6,100)
         CS3 = plt.contourf([[0,0],[0,0]], levels, cmap=plt.cm.copper,extend='max')
         plt.clf()
 
 
-        fig = plt.figure(figsize=(6,6))
+        fig = plt.figure(figsize=(4,4))
         ax=fig.add_axes([0,0,0.7,0.7])
         #ax2=fig.add_axes([1,0,0.7,0.7])
+        ax.axhline(0,c='black',alpha=0.3,ls='dotted')
+        ax.axhline(1,c='black',alpha=0.3,ls='dotted')
 
 
         if not os.path.isfile("normprofiles.pkl"):
@@ -1368,19 +1390,31 @@ class plots(object):
         times=bhbin().times
         for d in tqdm(data):
 
-            ax.plot(times,d[1],alpha=0.3, c= plt.cm.copper(d[0]/0.0016),lw=0.9)
-        axcb = fig.add_axes([0.75,0,0.05,0.7])
-        cb = fig.colorbar(CS3,cax=axcb,boundaries=np.linspace(0,0.016,100),ticks=np.linspace(0,0.0016,9))
+            ax.plot(times,d[1],alpha=0.7, c= plt.cm.copper(d[0]/0.0016),lw=1)
+        axcb = fig.add_axes([0.72,0,0.05,0.7])
+        cb = fig.colorbar(CS3,cax=axcb,boundaries=np.linspace(0,1.6,100),ticks=np.linspace(0,1.6,9))
+
+
 
         #for d1,d2,d3,d4 in tqdm(zip(data1,data2,data3,data4)):
 
             #ax.plot(d1,d2,alpha=0.2, c= plt.cm.copper(d4/0.001))
             #ax2.plot(d1,d3,alpha=0.2, c= plt.cm.copper(d4/0.001))
 
-        ax.plot(times,scipy.stats.norm.cdf(times, loc=10, scale=8),dashes=[10,4],c='dodgerblue',lw=1.5)
+        ax.plot(times,scipy.stats.norm.cdf(times, loc=10, scale=8),dashes=[10,4],c='C0',lw=2)
+        ax.plot(times,scipy.stats.norm.cdf(times, loc=10, scale=8),c='C0',alpha=0.5,lw=1)
+
+
+
 
         ax.set_xlim(-50,50)
-        #ax2.set_xlim(-50,50)
+        ax.set_ylim(-2.5,2.5)
+        ax.xaxis.set_minor_locator(AutoMinorLocator())
+        ax.yaxis.set_minor_locator(AutoMinorLocator())
+        cb.set_label('$v_k\;\;[0.001c]$')
+        #cb.ax.minorticks_on()
+        ax.set_xlabel("$t\;\;[M]$")
+        ax.set_ylabel("$\mathbf{v}(t)\cdot\mathbf{\hat n}\, /\, \mathbf{v_k}\cdot\mathbf{\hat n}$")
 
         return fig
 
@@ -1389,48 +1423,153 @@ class plots(object):
     @plottingstuff
     def explore(self):
 
-        figs=[]
 
-        for i in tqdm(range(int(1000))):
-            #print(i,dim)
+        fig = plt.figure(figsize=(6,6))
+        L=0.6
+        H=0.7
+        S=0.12
+        s=0.04
+        Li=0.35
+        Hi=0.25
+
+        axv= fig.add_axes([0,0,H,H])
+        axE= fig.add_axes([H+S-0.02,(H-S)/2+S,L,(H-S)/2])
+        axJ= fig.add_axes([H+S-0.02,0,L,(H-S)/2])
+
+        axi = fig.add_axes([H-Li-s,H-Hi-0.15,Li,Hi])
+
+
+        dim=int(1e6)
+
+        if not os.path.isfile("explore.pkl"):
+
+            def _explore(i):
+                np.random.seed()
+                q=np.random.uniform(0.5,1)
+                phi = np.random.uniform(0,2*np.pi)
+                theta = np.arccos(np.random.uniform(-1,1))
+                r = 0.8*(np.random.uniform(0,1))**(1./3.)
+                chi1= [ r*np.sin(theta)*np.cos(phi), r*np.sin(theta)*np.sin(phi), r*np.cos(theta) ]
+                phi = np.random.uniform(0,2*np.pi)
+                theta = np.arccos(np.random.uniform(-1,1))
+                r = 0.8*(np.random.uniform(0,1))**(1./3.)
+                chi2= [ r*np.sin(theta)*np.cos(phi), r*np.sin(theta)*np.sin(phi), r*np.cos(theta) ]
+                sk= bhbin(q=q,chi1=chi1,chi2=chi2)
+
+
+                q=np.random.uniform(0.5,1)
+                chi1m = 0.8*(np.random.uniform(0,1))**(1./3.)
+                chi2m = 0.8*(np.random.uniform(0,1))**(1./3.)
+                theta1=np.arccos(np.random.uniform(-1,1))
+                theta2=np.arccos(np.random.uniform(-1,1))
+                deltaphi = np.random.uniform(0,2*np.pi)
+                bigTheta = np.random.uniform(0,2*np.pi)
+                fk=fitkick(q,chi1m,chi2m,theta1,theta2,deltaphi,bigTheta)
+
+                return [sk.Erad,sk.kick,sk.Jrad,fk]
+
+            data= list(tqdm(self.map(_explore, range(dim)),total=dim))
+
+            with open("explore.pkl", 'wb') as f: pickle.dump(zip(*data), f)
+        with open("explore.pkl", 'rb') as f: Erad,kicks,Jrad,fk = pickle.load(f)
+
+
+
+        kicks=np.array(kicks)
+        fk=np.array(fk)
+
+        nbins=100
+        axE.hist(Erad,bins=nbins,weights=np.ones_like(Erad)/dim,histtype='step',lw=2,alpha=0.8,color='C0',normed=True)
+        axE.hist(Erad,bins=nbins,weights=np.ones_like(Erad)/dim,histtype='stepfilled',alpha=0.2,color='C0',normed=True)
+        for ax in [axv,axi]:
+            ax.hist(1/0.001*fk,bins=nbins,weights=np.ones_like(Erad)/dim,histtype='step',lw=2,alpha=0.8,color='C3',label='Fitting formula',normed=True)
+            ax.hist(1/0.001*fk,bins=nbins,weights=np.ones_like(Erad)/dim,histtype='stepfilled',alpha=0.2,color='C3',normed=True)
+            ax.hist(1/0.001*kicks,bins=nbins,weights=np.ones_like(Erad)/dim,histtype='step',lw=2,alpha=0.8,color='C0',label='Surrogate',normed=True)
+            ax.hist(1/0.001*kicks,bins=nbins,weights=np.ones_like(Erad)/dim,histtype='stepfilled',alpha=0.2,color='C0',normed=True)
+        axJ.hist(Jrad,bins=nbins,weights=np.ones_like(Erad)/dim,histtype='step',lw=2,alpha=0.8,color='C0',normed=True)
+        axJ.hist(Jrad,bins=nbins,weights=np.ones_like(Erad)/dim,histtype='stepfilled',alpha=0.2,color='C0',normed=True)
+        axE.set_xlabel("$E \;\;[M]$")
+        axv.set_xlabel("$v_k\;\;[0.001c]$")
+        axJ.set_xlabel("$J\;\;[M^2]$")
+        #
+        #
+        for ax in [axE,axv,axJ]:
+            ax.xaxis.set_minor_locator(AutoMinorLocator())
+            ax.yaxis.set_minor_locator(AutoMinorLocator())
+
+        axv.xaxis.set_minor_locator(MultipleLocator(0.5))
+        axv.xaxis.set_major_locator(MultipleLocator(2))
+
+
+        axv.legend(loc='upper right',fontsize=15)
+        axE.set_xlim(0.015,0.085)
+        axE.set_ylim(0,60)
+
+        axv.set_xlim(-0.5,12.5)
+        axv.set_ylim(0,0.35)
+
+        axJ.set_ylim(0,8)
+
+        axi.set_xlim(8,11)
+        axi.set_ylim(0,0.01)
+
+        axJ.yaxis.set_major_locator(MultipleLocator(2))
+
+        axi.xaxis.set_major_locator(MultipleLocator(1))
+        axi.yaxis.set_major_locator(MultipleLocator(0.002))
+        #
+        axi.set_yticklabels(axi.get_yticks(),fontsize=12)
+        axi.set_xticklabels(axi.get_xticks(),fontsize=12)
+        #
+        from mpl_toolkits.axes_grid1.inset_locator import mark_inset
+        mark_inset(axv, axi, loc1=4, loc2=3, fc="none", ec="0.5",alpha=0.8)
+
+        print(convert.kms(max(kicks)))
+        print(convert.kms(max(fk)))
+
+        return fig
+
+
+
+
+    @classmethod
+    def timing(seld):
+
+        times=[]
+        for i in range(1000):
+            t0=time.time()
             q=np.random.uniform(0.5,1)
-
+            #q=1
             phi = np.random.uniform(0,2*np.pi)
             theta = np.arccos(np.random.uniform(-1,1))
             r = 0.8*(np.random.uniform(0,1))**(1./3.)
+            #r=0.8
             chi1= [ r*np.sin(theta)*np.cos(phi), r*np.sin(theta)*np.sin(phi), r*np.cos(theta) ]
             phi = np.random.uniform(0,2*np.pi)
             theta = np.arccos(np.random.uniform(-1,1))
             r = 0.8*(np.random.uniform(0,1))**(1./3.)
+            #r=0.8
             chi2= [ r*np.sin(theta)*np.cos(phi), r*np.sin(theta)*np.sin(phi), r*np.cos(theta) ]
+            k = bhbin(q=q,chi1=chi1,chi2=chi2).kick
+            t=time.time()-t0
+            print(i,k,t)
+            times.append(t)
 
-
-            sk= bhbin(q=q,chi1=chi1,chi2=chi2)
-
-            fig= plt.figure(figsize=(6,6))
-            ax=fig.add_axes([0,0,0.7,0.7])
-            ax.plot(sk.times,project(sk.voft/sk.kick,sk.kickdir),c= plt.cm.copper(sk.kick/0.001))
-
-            ax.set_xlim(-50,50)
-            ax.set_xlabel("$t/M$")
-            ax.set_ylabel("$\mathbf{v(t)}/v_k \cdot \mathbf{\hat{v}_k}$")
-            ax.set_title('$q='+str(round(q,2))+'\;\;\chi_1='+str([round(x,2) for x in chi1])+'\;\;\chi_2='+str([round(x,2) for x in chi2])+'\;\;v_k='+str(round(sk.kick,5))+'$')
-
-
-            figs.append(fig)
-
-        return []
-
-
-
-
+        print("mean", np.mean(times))
+        print("median", np.median(times))
 
 ########################################
 if __name__ == "__main__":
+    #print(convert.kms(0.007))
 
+    plots.normprofiles()
+
+    #plots.explore()
+    #plots.explore()
+    #plots.timing()
     #plots.lineofsight()
-    plots.kickdistr()
-    plots.alphaprof()
+    #plots.findlarge()
+    #plots.alphaprof()
     #plots.centerofmass()
     #plots.alpharies()
     #for t_ref in np.linspace(-4500,-100,10):
@@ -1451,7 +1590,7 @@ if __name__ == "__main__":
     #print(fitkick2(0.5,1,-0.5,0,0,0,0))
     #print(convert.kms(bhbin(q=0.5).kick))
     #plots.kickdistr()
-    #plots.normprofiles()
+    #plots.files()
     #plots.testoptimizer()
     #plots.explore()
     #chi1=[0.4,-0.5,0.9]
