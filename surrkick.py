@@ -435,7 +435,7 @@ class surrkick(object):
     def Jrad(self):
         '''Total angular momentum radiated, i.e. the norm of [Jx(t),Jy(t),Jz(t)] at the last time node.
         Usage: Jrad=surrkick.surrkick().Jrad'''
-        
+
         if self._Jrad is None:
             self._Jrad = np.linalg.norm(self.Joft[-1])
         return self._Jrad
@@ -447,16 +447,8 @@ class surrkick(object):
 
         if self._xoft is None:
             # The integral of a spline is called antiderivative (mmmh...)
-
-            #print("here")
-            #origin = [np.average(x) for x in np.transpose(self.dvdt[0:100])]
             origin=[0,0,0]
-            #origin = np.array([spline(self.times,v).antiderivative()(self.times[30])  for v in np.transpose(self.dvdt)])
             self._xoft = np.transpose([spline(self.times,v).antiderivative()(self.times)-o  for v,o in zip(np.transpose(self.voft),origin)])
-            #print(origin)
-            #print(self._v[-1])
-            #print("")
-            #sys.exit()
         return self._xoft
 
 
@@ -500,75 +492,6 @@ def parseSXS(index):
     q=min(m1/m2,m2/m1)
 
     return q, [Erad, Prad, Jrad]
-
-
-def fitkick(q,chi1m,chi2m,theta1,theta2,deltaphi,bigTheta):
-
-    '''
-    Estimate the final kick of the BH remnant following a BH merger. We
-    implement the fitting formula to numerical relativity simulations developed
-    by the Rochester group. The implementation is the same as reported in Gerosa
-    and Kesden 2016
-    '''
-
-    q = min(q,1/q)  #Make sure q<1 in here
-    # Spins here are defined in a frame with L along z and S1 in xz
-    eta=q*pow(1.+q,-2.)
-    hatL = np.array([0,0,1])
-    hatS1 = np.array([np.sin(theta1),0,np.cos(theta1)])
-    hatS2 = np.array([np.sin(theta2)*np.cos(deltaphi),np.sin(theta2)*np.sin(deltaphi),np.cos(theta2)])
-    #Useful spin combinations.
-    Delta = -(q*chi2m*hatS2-chi1m*hatS1)/(1.+q)
-    Delta_par = np.dot(Delta,hatL)
-    Delta_perp = np.linalg.norm(np.cross(Delta,hatL))
-    chit = (q*q*chi2m*hatS2+chi1m*hatS1)/pow(1.+q,2.)
-    chit_par = np.dot(chit,hatL)
-    chit_perp = np.linalg.norm(np.cross(chit,hatL))
-
-    #Kick. Coefficients are quoted in km/s
-
-    # vm and vperp are like in Kesden at 2010a, vpar is modified from Lousto Zlochower 2013
-    zeta=np.radians(145.)
-    A=1.2e4
-    B=-0.93
-    H=6.9e3
-
-    # Switch on/off the various (super)kick contribution. Default are all on
-    superkick=True
-    hangupkick=True
-    crosskick=True
-
-    if superkick==True:
-        V11=3677.76
-    else:
-        V11=0.
-    if hangupkick==True:
-        VA=2481.21
-        VB=1792.45
-        VC=1506.52
-    else:
-        VA=0.
-        VB=0.
-        VC=0.
-    if crosskick==True:
-        C2=1140.
-        C3=2481.
-    else:
-        C2=0.
-        C3=0.
-
-    vm=A*eta*eta*(1.+B*eta)*(1.-q)/(1.+q)
-    vperp=H*eta*eta*Delta_par
-    vpar=16.*eta*eta* (Delta_perp*(V11+2.*VA*chit_par+4.*VB*pow(chit_par,2.)+8.*VC*pow(chit_par,3.)) + chit_perp*Delta_par*(2.*C2+4.*C3*chit_par)) * np.cos(bigTheta)
-    vkick=np.linalg.norm([vm+vperp*np.cos(zeta),vperp*np.sin(zeta),vpar])
-
-    #print(vkick)
-
-    assert vkick<5000 #I got v_kick>5000km/s. This shouldn't be possibile"
-    vkick=vkick/299792.458  # Natural units
-
-
-    return vkick
 
 
 class optkick(object):
@@ -1670,60 +1593,9 @@ class plots(object):
         print("median", np.median(timessur))
         print("mean", np.mean(timesfk))
         print("median", np.median(timesfk))
+
 ########################################
 if __name__ == "__main__":
 
 
-    #print(convert.kms(0.007))
-
-    #plots.timing()
-
-    #plots.normprofiles()
-
     plots.explore()
-    #plots.explore()
-    #plots.timing()
-    #plots.lineofsight()
-    #plots.findlarge()
-    #plots.alphaprof()
-    #plots.centerofmass()
-    #plots.alpharies()
-    #for t_ref in np.linspace(-4500,-100,10):
-    #    print(surrkick(q=1,chi1=[0.8,0,0],chi2=[-0.8,0,0],t_ref=t_ref).kick)
-    #print(convert.kms(surrkick(q=0.5,chi1=[0,0,0],chi2=[0,0,0],t_ref=-100).kick))
-    #plots.hangupErad()
-
-    #plots.leftright()
-    #plots.hangup()
-    #plots.nonspinning()
-    #plots.residuals()
-    #plots.profiles()
-    #plots.centerofmass()
-    #plots.alphaseries()
-    #plots.centerofmass()
-    #plots.nospinprofiles()
-    #print(fitkick(0.5,1,-0.5,0,0,0,0))
-    #print(fitkick2(0.5,1,-0.5,0,0,0,0))
-    #print(convert.kms(surrkick(q=0.5).kick))
-    #plots.kickdistr()
-    #plots.files()
-    #plots.testoptimizer()
-    #plots.explore()
-    #chi1=[0.4,-0.5,0.9]
-    #chi2=[-0.4,0.5,-0.9]
-    #print(chi1,chi2)
-    #print(convert.anglestocoords(*convert.coordstoangles(chi1,chi2)))
-    #plots.nospinprofiles()
-    #chi1mag,chi2mag,theta1,theta2,deltaphi,phi1=0.4,0.6,1,1,0,-1.57
-    #print(convert.coordstoangles(*convert.anglestocoords(chi1mag,chi2mag,theta1,theta2,deltaphi,phi1)))
-
-    #print(scipy.optimize.fminbound(lambda bigTheta: -fitkick(0.8,0.7,0.7,1.57,1/,1,bigTheta), -np.pi, np.pi,))
-
-    #print(scipy.optimize.fminbound(lambda bigTheta: -surrkick(q=0.8,chi1=), -np.pi, np.pi,))
-
-    #print(orbitaloptimizer(0.8,[0.1,0.1,0],[-0.7,0,0]))
-    #
-    # sur=surrogate()
-    # print(sur)
-    # sur2=surrogate()
-    # print(sur2)
