@@ -11,7 +11,6 @@ import scipy.stats
 from scipy.interpolate import InterpolatedUnivariateSpline as spline
 import NRSur7dq2
 from singleton_decorator import singleton
-import precession
 import h5py
 from tqdm import tqdm
 import cPickle as pickle
@@ -20,7 +19,7 @@ import multiprocessing, pathos.multiprocessing
 __author__ = "Davide Gerosa"
 __email__ = "dgerosa@caltech.edu"
 __license__ = "MIT"
-__version__ = "dev"
+__version__ = "0.0"
 __doc__="**Author** "+__author__+"\n\n"+\
         "**email** "+__email__+"\n\n"+\
         "**Licence** "+__license__+"\n\n"+\
@@ -29,11 +28,30 @@ __doc__="**Author** "+__author__+"\n\n"+\
 
 
 class summodes(object):
-    '''Return indexes to perform a mode sum in l and m.'''
+
+    '''
+    Return indexes to perform a mode sum in l (from 0 to lmax) and m (from -l to +l).
+    '''
 
     @staticmethod
     def single(lmax):
-        ''' Sum_{l,m} '''
+
+        '''
+        Single mode sum: Sum_{l,m}.
+
+        **Call:**
+
+            for l,m in summodes.single(lmax)...
+
+        **Parameters:**
+
+        - `lmax`: largest l.
+
+        **Returns:**
+
+        - `iterations`: list of (l,m) tuples.
+        '''
+
         iterations=[]
         for l1 in np.arange(2,lmax+1):
             for m1 in np.arange(-l1,l1+1):
@@ -42,7 +60,22 @@ class summodes(object):
 
     @staticmethod
     def double(lmax):
-        ''' Sum_{l1,m1} Sum_{l2,m2}'''
+
+        '''
+        Double mode sum: Sum_{l1,m1} Sum_{l2,m2}.
+
+        **Call:**
+
+            for l1,m1,l2,m2 in summodes.double(lmax)...
+
+        **Parameters:**
+
+        - `lmax`: largest l.
+
+        **Returns:**
+
+        - `iterations`: list of (l1,m1,l2,m2) tuples.
+        '''
 
         iterations=[]
         for l1 in np.arange(2,lmax+1):
@@ -55,94 +88,228 @@ class summodes(object):
 
 
 class coeffs(object):
-    ''' Coefficients of the momentum expression, from Eqs. (3.16-3.19,3.25) of arXiv:0707.4654. All are defined as static methods and can be called with, e.g., `coeffs.a(l,m)` withtout first defining an instance of the `coeffs` class.'''
+    '''Coefficients of the momentum expression, from Eqs. (3.16-3.19,3.25) of arXiv:0707.4654. All are defined as static methods and can be called with, e.g., `coeffs.a(l,m)`.'''
 
     @staticmethod
     def a(l,m):
-        '''Eq. (3.16) of arXiv:0707.4654'''
+
+        '''
+        Eq. (3.16) of arXiv:0707.4654.
+
+        **Call:**
+
+            a=coeffs.a(l,m)
+
+        **Parameters:**
+
+        - `l`: multipolar expansion index.
+        - `m`: multipolar expansion index.
+
+        **Returns:**
+
+        - `a`: coefficient.
+        '''
+
         return ( (l-m) * (l+m+1) )**0.5 / ( l * (l+1) )
 
     @staticmethod
     def b(l,m):
-        '''Eq. (3.17) of arXiv:0707.4654'''
+
+        '''
+        Eq. (3.17) of arXiv:0707.4654.
+
+        **Call:**
+
+            b=coeffs.b(l,m)
+
+        **Parameters:**
+
+        - `l`: multipolar expansion index.
+        - `m`: multipolar expansion index.
+
+        **Returns:**
+
+        - `b`: coefficient.
+        '''
+
         return  ( 1/(2*l) ) *  ( ( (l-2) * (l+2) * (l+m) * (l+m-1) ) / ( (2*l-1) * (2*l+1) ))**0.5
 
     @staticmethod
     def c(l,m):
-        '''Eq. (3.18) of arXiv:0707.4654'''
+
+        '''
+        Eq. (3.18) of arXiv:0707.4654.
+
+        **Call:**
+
+            c=coeffs.c(l,m)
+
+        **Parameters:**
+
+        - `l`: multipolar expansion index.
+        - `m`: multipolar expansion index.
+
+        **Returns:**
+
+        - `c`: coefficient.
+        '''
+
         return  2*m / ( l * (l+1) )
 
     @staticmethod
     def d(l,m):
-        '''Eq. (3.19) of arXiv:0707.4654'''
+
+        '''
+        Eq. (3.19) of arXiv:0707.4654.
+
+        **Call:**
+
+            d=coeffs.d(l,m)
+
+        **Parameters:**
+
+        - `l`: multipolar expansion index.
+        - `m`: multipolar expansion index.
+
+        **Returns:**
+
+        - `d`: coefficient.
+        '''
+
         return  ( 1/l ) *  ( ( (l-2) * (l+2) * (l-m) * (l+m) ) / ( (2*l-1) * (2*l+1) ))**0.5
 
     @staticmethod
     def f(l,m):
-        '''Eq. (3.25) of arXiv:0707.4654'''
+
+        '''
+        Eq. (3.25) of arXiv:0707.4654.
+
+        **Call:**
+
+            f=coeffs.f(l,m)
+
+        **Parameters:**
+
+        - `l`: multipolar expansion index.
+        - `m`: multipolar expansion index.
+
+        **Returns:**
+
+        - `f`: coefficient.
+        '''
+
         return  ( l*(l+1) - m*(m+1) )**0.5
 
 
 
 class convert(object):
-    ''' Convert units to other units'''
+    '''Utility class to convert units to other units.'''
 
     @staticmethod
     def kms(x):
-        '''Convert a velocity from natural units c=1 to km/s. '''
+
+        '''
+        Convert a velocity from natural units (c=1) to km/s.
+
+        **Call:**
+
+            vkms=conver.kms(vnat)
+
+        **Parameters:**
+
+        - `vnat`: velocity in units of the speed of light.
+
+        **Returns:**
+
+        - `vnat`: velocity in km/s.
+        '''
+
         return x * 299792.458
 
-    @staticmethod
-    def anglestocoords(chi1mag,chi2mag,theta1,theta2,deltaphi,phi1):
-
-        assert theta1>=0 and theta1<=np.pi and theta2>=0 and theta2<=np.pi
-        phi2 = deltaphi+phi1
-        chi1 = chi1mag*np.array([np.sin(theta1)*np.cos(phi1), np.sin(theta1)*np.sin(phi1), np.cos(theta1)])
-        chi2 = chi2mag*np.array([np.sin(theta2)*np.cos(phi2), np.sin(theta2)*np.sin(phi2), np.cos(theta2)])
-        return chi1,chi2
-
-    @staticmethod
-    def coordstoangles(chi1,chi2):
-
-        chi1mag = np.linalg.norm(chi1)
-        chi2mag = np.linalg.norm(chi2)
-
-        theta1 = np.arccos(chi1[2]/chi1mag)
-        theta2 = np.arccos(chi2[2]/chi2mag)
-        #print(theta1,chi1[0],chi1mag,chi1[0]/(chi1mag*np.sin(theta1)))
-        if chi1[1]==0:
-            phi1 = np.sign(chi1[0])*np.arccos(chi1[0]/(chi1mag*np.sin(theta1)))
-        else:
-            phi1 = np.sign(chi1[1])*np.arccos(chi1[0]/(chi1mag*np.sin(theta1)))
-        if chi2[1]==0:
-            phi2 = np.sign(chi2[0])*np.arccos(chi2[0]/(chi2mag*np.sin(theta2)))
-        else:
-            phi2 = np.sign(chi2[1])*np.arccos(chi2[0]/(chi2mag*np.sin(theta2)))
-        deltaphi = phi2 - phi1
-
-        return chi1mag,chi2mag,theta1,theta2,deltaphi,phi1
+    # TODO: I think I can remove these.
+    # @staticmethod
+    # def anglestocoords(chi1mag,chi2mag,theta1,theta2,deltaphi,phi1):
+    #     ''' TODO: check if I still need this'''
+    #
+    #     assert theta1>=0 and theta1<=np.pi and theta2>=0 and theta2<=np.pi
+    #     phi2 = deltaphi+phi1
+    #     chi1 = chi1mag*np.array([np.sin(theta1)*np.cos(phi1), np.sin(theta1)*np.sin(phi1), np.cos(theta1)])
+    #     chi2 = chi2mag*np.array([np.sin(theta2)*np.cos(phi2), np.sin(theta2)*np.sin(phi2), np.cos(theta2)])
+    #     return chi1,chi2
+    #
+    # @staticmethod
+    # def coordstoangles(chi1,chi2):
+    #     ''' TODO: check if I still need this'''
+    #
+    #     chi1mag = np.linalg.norm(chi1)
+    #     chi2mag = np.linalg.norm(chi2)
+    #
+    #     theta1 = np.arccos(chi1[2]/chi1mag)
+    #     theta2 = np.arccos(chi2[2]/chi2mag)
+    #
+    #     if chi1[1]==0:
+    #         phi1 = np.sign(chi1[0])*np.arccos(chi1[0]/(chi1mag*np.sin(theta1)))
+    #     else:
+    #         phi1 = np.sign(chi1[1])*np.arccos(chi1[0]/(chi1mag*np.sin(theta1)))
+    #     if chi2[1]==0:
+    #         phi2 = np.sign(chi2[0])*np.arccos(chi2[0]/(chi2mag*np.sin(theta2)))
+    #     else:
+    #         phi2 = np.sign(chi2[1])*np.arccos(chi2[0]/(chi2mag*np.sin(theta2)))
+    #     deltaphi = phi2 - phi1
+    #
+    #     return chi1mag,chi2mag,theta1,theta2,deltaphi,phi1
 
 
 @singleton
 class surrogate(object):
-    ''' Initialize the surrogate using a singleton. This means there can only be one instance of this class (makes sense: there's only one surrogate model).'''
+
+    '''
+    Initialize the NRSur7dq2 surrogate model. This uses a singleton pattern, which means there can only be one instance of this class.
+    '''
+
     def __init__(self):
+
+        '''
+        Initialize the `surrogate` class
+        '''
+
         self._sur=None
 
     def sur(self):
+
+        '''
+        Initialize from file `NRSur7dq2.h5`
+
+        **Call:**
+
+            sur=surrogate().sur()
+
+        **Returns:**
+
+        - `sur`: surrogate class.
+        '''
+
         if self._sur==None:
             self._sur = NRSur7dq2.NRSurrogate7dq2('NRSur7dq2.h5')
         return self._sur
 
 
-class bhbin(object):
-    ''' Super class to contain info for a single binary evolution'''
+class surrkick(object):
+
+    '''
+    Extract energy, linear momentum and angular momentum emitted in gravitational waves from a waveform surrogate model.
+    '''
 
     def __init__(self,q=1,chi1=[0,0,0],chi2=[0,0,0],t_ref=-100):
-        self.sur=surrogate().sur() # Initialize the surrogate. Note it's a singleton
-        self.q = max(q,1/q) # Make sure q>1 in this class, that's what the surrogate wants
-        self.chi1 = np.array(chi1) # chi1 is the spin of the larger BH
-        self.chi2 = np.array(chi2) # chi2 is the spin of the smaller BH
+
+        '''
+        Initialize the `surrkick` class
+        '''
+        
+        self.sur=surrogate().sur()    # Initialize the surrogate. Note it's a singleton
+        self.q = max(q,1/q)           # Make sure q>1 in this class, that's what NRSur7dq2 wants
+        self.chi1 = np.array(chi1)    # chi1 is the spin of the larger BH
+        self.chi2 = np.array(chi2)    # chi2 is the spin of the smaller BH
         self.times = self.sur.t_coorb # Short name for the time nodes
 
         assert t_ref>=-4500 and t_ref<=-100
@@ -496,7 +663,7 @@ class optkick(object):
 
     def _phasesur(self,x):
         chi1h,chi2h=convert.anglestocoords(self.chi1m,self.chi2m,self.theta1,self.theta2,self.deltaphi,x)
-        return bhbin(q=self.q,chi1=chi1h,chi2=chi2h,t_ref=self.t_ref).kick
+        return surrkick(q=self.q,chi1=chi1h,chi2=chi2h,t_ref=self.t_ref).kick
     def phasesur(self,xs):
         return np.array([self._phasesur(x) for x in xs])
 
@@ -593,7 +760,7 @@ class plots(object):
             t0=time.time()
             for q in q_vals:
                 print(q)
-                sk = bhbin(q=q)
+                sk = surrkick(q=q)
                 data.append([sk.Erad,sk.Prad,sk.Jrad])
 
             print("Time", time.time()-t0)
@@ -644,7 +811,7 @@ class plots(object):
         for i,q in enumerate(q_vals):
             print(q)
             color=plt.cm.copper(i/len(q_vals))
-            b = bhbin(q=q)
+            b = surrkick(q=q)
             #if q==q_vals[-1]:
             #    dashes=[10,2]
             #else:
@@ -705,7 +872,7 @@ class plots(object):
             q=0.5
             chi1=[0,0,0]
             chi2=[0,0,0]
-            sk = bhbin(q=q , chi1=chi1,chi2=chi2)
+            sk = surrkick(q=q , chi1=chi1,chi2=chi2)
             print(sk.times)
             x0,y0,z0=sk.xoft[sk.times==min(abs(sk.times))][0]
 
@@ -753,7 +920,7 @@ class plots(object):
             q=0.5
             chi1=[0.8,0,0]
             chi2=[-0.8,0,0]
-            sk = bhbin(q=q , chi1=chi1, chi2=chi2)
+            sk = surrkick(q=q , chi1=chi1, chi2=chi2)
 
             x0,y0,z0=sk.xoft[sk.times==min(abs(sk.times))][0]
 
@@ -803,7 +970,7 @@ class plots(object):
             chi2=[-0.87810809, 0.06485156, 0.47404689]
             chi2=np.array(chi2)*0.8/np.linalg.norm(chi2)
 
-            sk = bhbin(q=q , chi1=chi1, chi2=chi2)
+            sk = surrkick(q=q , chi1=chi1, chi2=chi2)
 
             x0,y0,z0=sk.xoft[sk.times==min(abs(sk.times))][0]
 
@@ -881,18 +1048,18 @@ class plots(object):
         kick_vals=[]
 
         for t_ref in tqdm(tref_vals):
-            sk = bhbin(q=1 , chi1=[chimag,0,0],chi2=[-chimag,0,0],t_ref=t_ref)
+            sk = surrkick(q=1 , chi1=[chimag,0,0],chi2=[-chimag,0,0],t_ref=t_ref)
             kick_vals.append(sk.kick)
             #print(t_ref,sk.kick)
         axs[0].plot(tref_vals,1/0.001*np.array(kick_vals))
-        axs[0].scatter(-125,1/0.001*bhbin(q=1 , chi1=[chimag,0,0],chi2=[-chimag,0,0],t_ref=-125).kick,marker='o',edgecolor='C1',facecolor='none',s=100,linewidth='2')
+        axs[0].scatter(-125,1/0.001*surrkick(q=1 , chi1=[chimag,0,0],chi2=[-chimag,0,0],t_ref=-125).kick,marker='o',edgecolor='C1',facecolor='none',s=100,linewidth='2')
 
 
         alpha_vals=np.linspace(-np.pi,np.pi,dim)
 
         kick_vals=[]
         for alpha in tqdm(alpha_vals):
-            sk = bhbin(q=1 , chi1=[chimag*np.cos(alpha),chimag*np.sin(alpha),0],chi2=[-chimag*np.cos(alpha),-chimag*np.sin(alpha),0])
+            sk = surrkick(q=1 , chi1=[chimag*np.cos(alpha),chimag*np.sin(alpha),0],chi2=[-chimag*np.cos(alpha),-chimag*np.sin(alpha),0])
             kick_vals.append(sk.kick)
 
         axs[1].plot(alpha_vals,1/0.001*np.array(kick_vals),c='C3')
@@ -906,7 +1073,7 @@ class plots(object):
         #     alpha_vals=np.linspace(0,2.*np.pi,50)
         #     kick_vals=[]
         #     for alpha in alpha_vals:
-        #         sk = bhbin(q=1 , chi1=[chimag*np.cos(alpha),chimag*np.sin(alpha),0],chi2=[-chimag*np.cos(alpha),-chimag*np.sin(alpha),0])
+        #         sk = surrkick(q=1 , chi1=[chimag*np.cos(alpha),chimag*np.sin(alpha),0],chi2=[-chimag*np.cos(alpha),-chimag*np.sin(alpha),0])
         #         kick_vals.append(convert.kms(sk.kickcomp[-1]))
         #
         #     ax.plot(alpha_vals,kick_vals,color=color)
@@ -947,7 +1114,7 @@ class plots(object):
         alpha_vals=np.linspace(-np.pi,np.pi,50)
         kick_vals=[]
         for i, alpha in tqdm(enumerate(alpha_vals)):
-            sk = bhbin(q=1, chi1=[chimag*np.cos(alpha),chimag*np.sin(alpha),0],chi2=[-chimag*np.cos(alpha),-chimag*np.sin(alpha),0])
+            sk = surrkick(q=1, chi1=[chimag*np.cos(alpha),chimag*np.sin(alpha),0],chi2=[-chimag*np.cos(alpha),-chimag*np.sin(alpha),0])
 
             color=plt.cm.copper(i/len(alpha_vals))
 
@@ -989,7 +1156,7 @@ class plots(object):
             ax.axhline(0,c='black',alpha=0.3,ls='dotted')
 
             chimag=0.8
-            sk= bhbin(q=q,chi1=[0,0,chimag],chi2=[0,0,-chimag],t_ref=-100)
+            sk= surrkick(q=q,chi1=[0,0,chimag],chi2=[0,0,-chimag],t_ref=-100)
 
             store=[]
             dim=15
@@ -1050,9 +1217,9 @@ class plots(object):
             axs = [fig.add_axes([0,-i*(S+H),L,H]) for i in [0,1,2,3]]
 
             chimag=0.8
-            sks=[ bhbin(q=q,chi1=[0,0,chimag],chi2=[0,0,chimag],t_ref=-100), bhbin(q=q,chi1=[0,0,-chimag],chi2=[0,0,-chimag],t_ref=-100),
-            bhbin(q=q,chi1=[0,0,chimag],chi2=[0,0,-chimag],t_ref=-100),
-            bhbin(q=q, chi1=[0,0,-chimag],chi2=[0,0,chimag],t_ref=-100)]
+            sks=[ surrkick(q=q,chi1=[0,0,chimag],chi2=[0,0,chimag],t_ref=-100), surrkick(q=q,chi1=[0,0,-chimag],chi2=[0,0,-chimag],t_ref=-100),
+            surrkick(q=q,chi1=[0,0,chimag],chi2=[0,0,-chimag],t_ref=-100),
+            surrkick(q=q, chi1=[0,0,-chimag],chi2=[0,0,chimag],t_ref=-100)]
 
 
             labels=["up-up","down-down","up-down","down-up"]
@@ -1108,11 +1275,11 @@ class plots(object):
             ax = fig.add_axes([0,0,L,H])
 
             chimag=0.8
-            sks=[ bhbin(q=q,chi1=[0,0,chimag],chi2=[0,0,chimag]),
-                bhbin(q=q,chi1=[0,0,-chimag],chi2=[0,0,-chimag]),
-                bhbin(q=q,chi1=[0,0,chimag],chi2=[0,0,-chimag]),
-                bhbin(q=q, chi1=[0,0,-chimag],chi2=[0,0,chimag]),
-                bhbin(q=q, chi1=[0,0,0],chi2=[0,0,0])]
+            sks=[ surrkick(q=q,chi1=[0,0,chimag],chi2=[0,0,chimag]),
+                surrkick(q=q,chi1=[0,0,-chimag],chi2=[0,0,-chimag]),
+                surrkick(q=q,chi1=[0,0,chimag],chi2=[0,0,-chimag]),
+                surrkick(q=q, chi1=[0,0,-chimag],chi2=[0,0,chimag]),
+                surrkick(q=q, chi1=[0,0,0],chi2=[0,0,0])]
 
 
             labels=["$\chi_i\!=\!0.8$, up-up","$\chi_i\!=\!0.8$, down-down","$\chi_i\!=\!0.8$, up-down","$\chi_i\!=\!0.8$, down-up","$\chi_i=0$"]
@@ -1161,10 +1328,10 @@ class plots(object):
 
             chimag1=0.8
             chimag2=0.8
-            sks=[ bhbin(q=q,chi1=[chimag1,0,0],chi2=[chimag2,0,0],t_ref=-125),
-            bhbin(q=q,chi1=[-chimag1,0,0],chi2=[-chimag2,0,0],t_ref=-125),
-            bhbin(q=q,chi1=[chimag1,0,0],chi2=[-chimag2,0,0],t_ref=-125),
-            bhbin(q=q, chi1=[-chimag1,0,0],chi2=[chimag2,0,0],t_ref=-125)]
+            sks=[ surrkick(q=q,chi1=[chimag1,0,0],chi2=[chimag2,0,0],t_ref=-125),
+            surrkick(q=q,chi1=[-chimag1,0,0],chi2=[-chimag2,0,0],t_ref=-125),
+            surrkick(q=q,chi1=[chimag1,0,0],chi2=[-chimag2,0,0],t_ref=-125),
+            surrkick(q=q, chi1=[-chimag1,0,0],chi2=[chimag2,0,0],t_ref=-125)]
 
 
             labels=["right-right","left-left","right-left","left-right"]
@@ -1263,7 +1430,7 @@ class plots(object):
             #
             #     kick_vals=[]
             #     for alpha in alpha_vals:
-            #         sk = bhbin(q=1 , chi1=[chimag*np.cos(alpha),chimag*np.sin(alpha),0],chi2=[-chimag*np.cos(alpha),-chimag*np.sin(alpha),0])
+            #         sk = surrkick(q=1 , chi1=[chimag*np.cos(alpha),chimag*np.sin(alpha),0],chi2=[-chimag*np.cos(alpha),-chimag*np.sin(alpha),0])
             #         kick_vals.append(convert.kms(sk.kickcomp[-1]))
             #
             #     ax.plot(alpha_vals,kick_vals,color=color)
@@ -1312,7 +1479,7 @@ class plots(object):
                 #r = 0.8*(np.random.uniform(0,1))**(1./3.)
                 r=0.8
                 chi2= [ r*np.sin(theta)*np.cos(phi), r*np.sin(theta)*np.sin(phi), r*np.cos(theta) ]
-                sk= bhbin(q=q,chi1=chi1,chi2=chi2)
+                sk= surrkick(q=q,chi1=chi1,chi2=chi2)
                 return [q,chi1,chi2,sk.kick]
 
             data= list(tqdm(self.map(_kickdistr, range(dim)),total=dim))
@@ -1367,7 +1534,7 @@ class plots(object):
                 r = 0.8*(np.random.uniform(0,1))**(1./3.)
                 chi2= [ r*np.sin(theta)*np.cos(phi), r*np.sin(theta)*np.sin(phi), r*np.cos(theta) ]
 
-                sk= bhbin(q=q,chi1=chi1,chi2=chi2)
+                sk= surrkick(q=q,chi1=chi1,chi2=chi2)
 
                 phi = np.random.uniform(0,2*np.pi)
                 theta = np.arccos(np.random.uniform(-1,1))
@@ -1387,7 +1554,7 @@ class plots(object):
         #with open("normprofiles.pkl", 'rb') as f: data1,data2,data3,data4 = pickle.load(f)
         with open("normprofiles.pkl", 'rb') as f: data = pickle.load(f)
 
-        times=bhbin().times
+        times=surrkick().times
         for d in tqdm(data):
 
             ax.plot(times,d[1],alpha=0.7, c= plt.cm.copper(d[0]/0.0016),lw=1)
@@ -1409,6 +1576,7 @@ class plots(object):
 
         ax.set_xlim(-50,50)
         ax.set_ylim(-2.5,2.5)
+        ax.xaxis.set_major_locator(MultipleLocator(20))
         ax.xaxis.set_minor_locator(AutoMinorLocator())
         ax.yaxis.set_minor_locator(AutoMinorLocator())
         cb.set_label('$v_k\;\;[0.001c]$')
@@ -1454,7 +1622,7 @@ class plots(object):
                 theta = np.arccos(np.random.uniform(-1,1))
                 r = 0.8*(np.random.uniform(0,1))**(1./3.)
                 chi2= [ r*np.sin(theta)*np.cos(phi), r*np.sin(theta)*np.sin(phi), r*np.cos(theta) ]
-                sk= bhbin(q=q,chi1=chi1,chi2=chi2)
+                sk= surrkick(q=q,chi1=chi1,chi2=chi2)
 
 
                 q=np.random.uniform(0.5,1)
@@ -1533,36 +1701,54 @@ class plots(object):
 
 
     @classmethod
-    def timing(seld):
+    def timing(self):
 
-        times=[]
+        timessur=[]
+        timesfk=[]
         for i in range(1000):
-            t0=time.time()
+
             q=np.random.uniform(0.5,1)
-            #q=1
             phi = np.random.uniform(0,2*np.pi)
             theta = np.arccos(np.random.uniform(-1,1))
             r = 0.8*(np.random.uniform(0,1))**(1./3.)
-            #r=0.8
             chi1= [ r*np.sin(theta)*np.cos(phi), r*np.sin(theta)*np.sin(phi), r*np.cos(theta) ]
             phi = np.random.uniform(0,2*np.pi)
             theta = np.arccos(np.random.uniform(-1,1))
             r = 0.8*(np.random.uniform(0,1))**(1./3.)
-            #r=0.8
             chi2= [ r*np.sin(theta)*np.cos(phi), r*np.sin(theta)*np.sin(phi), r*np.cos(theta) ]
-            k = bhbin(q=q,chi1=chi1,chi2=chi2).kick
-            t=time.time()-t0
-            print(i,k,t)
-            times.append(t)
 
-        print("mean", np.mean(times))
-        print("median", np.median(times))
+            t0=time.time()
+            sk= surrkick(q=q,chi1=chi1,chi2=chi2).kick
+            tsur=time.time()-t0
 
+
+            q=np.random.uniform(0.5,1)
+            chi1m = 0.8*(np.random.uniform(0,1))**(1./3.)
+            chi2m = 0.8*(np.random.uniform(0,1))**(1./3.)
+            theta1=np.arccos(np.random.uniform(-1,1))
+            theta2=np.arccos(np.random.uniform(-1,1))
+            deltaphi = np.random.uniform(0,2*np.pi)
+            bigTheta = np.random.uniform(0,2*np.pi)
+
+            t0=time.time()
+            fk=fitkick(q,chi1m,chi2m,theta1,theta2,deltaphi,bigTheta)
+            tfk=time.time()-t0
+
+
+            print(i,tsur,tfk)
+            timessur.append(tsur)
+            timesfk.append(tfk)
+        print("mean", np.mean(timessur))
+        print("median", np.median(timessur))
+        print("mean", np.mean(timesfk))
+        print("median", np.median(timesfk))
 ########################################
 if __name__ == "__main__":
     #print(convert.kms(0.007))
 
-    plots.normprofiles()
+    plots.timing()
+
+    #plots.normprofiles()
 
     #plots.explore()
     #plots.explore()
@@ -1573,8 +1759,8 @@ if __name__ == "__main__":
     #plots.centerofmass()
     #plots.alpharies()
     #for t_ref in np.linspace(-4500,-100,10):
-    #    print(bhbin(q=1,chi1=[0.8,0,0],chi2=[-0.8,0,0],t_ref=t_ref).kick)
-    #print(convert.kms(bhbin(q=0.5,chi1=[0,0,0],chi2=[0,0,0],t_ref=-100).kick))
+    #    print(surrkick(q=1,chi1=[0.8,0,0],chi2=[-0.8,0,0],t_ref=t_ref).kick)
+    #print(convert.kms(surrkick(q=0.5,chi1=[0,0,0],chi2=[0,0,0],t_ref=-100).kick))
     #plots.hangupErad()
 
     #plots.leftright()
@@ -1588,7 +1774,7 @@ if __name__ == "__main__":
     #plots.nospinprofiles()
     #print(fitkick(0.5,1,-0.5,0,0,0,0))
     #print(fitkick2(0.5,1,-0.5,0,0,0,0))
-    #print(convert.kms(bhbin(q=0.5).kick))
+    #print(convert.kms(surrkick(q=0.5).kick))
     #plots.kickdistr()
     #plots.files()
     #plots.testoptimizer()
@@ -1603,7 +1789,7 @@ if __name__ == "__main__":
 
     #print(scipy.optimize.fminbound(lambda bigTheta: -fitkick(0.8,0.7,0.7,1.57,1/,1,bigTheta), -np.pi, np.pi,))
 
-    #print(scipy.optimize.fminbound(lambda bigTheta: -bhbin(q=0.8,chi1=), -np.pi, np.pi,))
+    #print(scipy.optimize.fminbound(lambda bigTheta: -surrkick(q=0.8,chi1=), -np.pi, np.pi,))
 
     #print(orbitaloptimizer(0.8,[0.1,0.1,0],[-0.7,0,0]))
     #
