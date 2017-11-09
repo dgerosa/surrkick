@@ -15,6 +15,7 @@ import h5py
 from tqdm import tqdm
 import cPickle as pickle
 import multiprocessing, pathos.multiprocessing
+import precession
 
 __author__ = "Davide Gerosa"
 __email__ = "dgerosa@caltech.edu"
@@ -28,29 +29,12 @@ __doc__="**Author** "+__author__+"\n\n"+\
 
 
 class summodes(object):
-
-    '''
-    Return indexes to perform a mode sum in l (from 0 to lmax) and m (from -l to +l).
-    '''
+    '''Return indexes to perform a mode sum in l (from 0 to lmax) and m (from -l to +l).'''
 
     @staticmethod
     def single(lmax):
-
-        '''
-        Single mode sum: Sum_{l,m}.
-
-        **Call:**
-
-            for l,m in summodes.single(lmax)...
-
-        **Parameters:**
-
-        - `lmax`: largest l.
-
-        **Returns:**
-
-        - `iterations`: list of (l,m) tuples.
-        '''
+        '''Single mode sum: Sum_{l,m} with 0<=l<=lmax and -l<=m<=l. Returns a list of (l,m) tuples.
+        Usage: iterations=surrkick.summodes.single(lmax)'''
 
         iterations=[]
         for l1 in np.arange(2,lmax+1):
@@ -60,22 +44,9 @@ class summodes(object):
 
     @staticmethod
     def double(lmax):
+        '''Double mode sum: Sum_{l1,m1} Sum_{l2,m2}  with 0<=l1,l2<=lmax and -l<=m<=l. Returns a list of (l1,m1,l2,m2) tuples.
+        Usage: iterations=surrkick.summodes.double(lmax)'''
 
-        '''
-        Double mode sum: Sum_{l1,m1} Sum_{l2,m2}.
-
-        **Call:**
-
-            for l1,m1,l2,m2 in summodes.double(lmax)...
-
-        **Parameters:**
-
-        - `lmax`: largest l.
-
-        **Returns:**
-
-        - `iterations`: list of (l1,m1,l2,m2) tuples.
-        '''
 
         iterations=[]
         for l1 in np.arange(2,lmax+1):
@@ -88,93 +59,33 @@ class summodes(object):
 
 
 class coeffs(object):
-    '''Coefficients of the momentum expression, from Eqs. (3.16-3.19,3.25) of arXiv:0707.4654. All are defined as static methods and can be called with, e.g., `coeffs.a(l,m)`.'''
+    '''Coefficients of the momentum expression, from Eqs. (3.16-3.19,3.25) of arXiv:0707.4654. All are defined as static methods and can be called with, e.g., coeffs.a(l,m).'''
 
     @staticmethod
     def a(l,m):
-
-        '''
-        Eq. (3.16) of arXiv:0707.4654.
-
-        **Call:**
-
-            a=coeffs.a(l,m)
-
-        **Parameters:**
-
-        - `l`: multipolar expansion index.
-        - `m`: multipolar expansion index.
-
-        **Returns:**
-
-        - `a`: coefficient.
-        '''
+        '''Eq. (3.16) of arXiv:0707.4654.
+        Usage: a=surrkick.coeffs.a(l,m)'''
 
         return ( (l-m) * (l+m+1) )**0.5 / ( l * (l+1) )
 
     @staticmethod
     def b(l,m):
-
-        '''
-        Eq. (3.17) of arXiv:0707.4654.
-
-        **Call:**
-
-            b=coeffs.b(l,m)
-
-        **Parameters:**
-
-        - `l`: multipolar expansion index.
-        - `m`: multipolar expansion index.
-
-        **Returns:**
-
-        - `b`: coefficient.
-        '''
+        '''Eq. (3.17) of arXiv:0707.4654.
+        Usage: b=surrkick.coeffs.b(l,m)'''
 
         return  ( 1/(2*l) ) *  ( ( (l-2) * (l+2) * (l+m) * (l+m-1) ) / ( (2*l-1) * (2*l+1) ))**0.5
 
     @staticmethod
     def c(l,m):
-
-        '''
-        Eq. (3.18) of arXiv:0707.4654.
-
-        **Call:**
-
-            c=coeffs.c(l,m)
-
-        **Parameters:**
-
-        - `l`: multipolar expansion index.
-        - `m`: multipolar expansion index.
-
-        **Returns:**
-
-        - `c`: coefficient.
-        '''
+        '''Eq. (3.18) of arXiv:0707.4654.
+        Usage: c=surrkick.coeffs.c(l,m)'''
 
         return  2*m / ( l * (l+1) )
 
     @staticmethod
     def d(l,m):
-
-        '''
-        Eq. (3.19) of arXiv:0707.4654.
-
-        **Call:**
-
-            d=coeffs.d(l,m)
-
-        **Parameters:**
-
-        - `l`: multipolar expansion index.
-        - `m`: multipolar expansion index.
-
-        **Returns:**
-
-        - `d`: coefficient.
-        '''
+        '''Eq. (3.19) of arXiv:0707.4654.
+        Usage: d=surrkick.coeffs.d(l,m)'''
 
         return  ( 1/l ) *  ( ( (l-2) * (l+2) * (l-m) * (l+m) ) / ( (2*l-1) * (2*l+1) ))**0.5
 
@@ -183,19 +94,7 @@ class coeffs(object):
 
         '''
         Eq. (3.25) of arXiv:0707.4654.
-
-        **Call:**
-
-            f=coeffs.f(l,m)
-
-        **Parameters:**
-
-        - `l`: multipolar expansion index.
-        - `m`: multipolar expansion index.
-
-        **Returns:**
-
-        - `f`: coefficient.
+        Usage: `f=surrkick.coeffs.f(l,m)`
         '''
 
         return  ( l*(l+1) - m*(m+1) )**0.5
@@ -207,22 +106,8 @@ class convert(object):
 
     @staticmethod
     def kms(x):
-
-        '''
-        Convert a velocity from natural units (c=1) to km/s.
-
-        **Call:**
-
-            vkms=conver.kms(vnat)
-
-        **Parameters:**
-
-        - `vnat`: velocity in units of the speed of light.
-
-        **Returns:**
-
-        - `vnat`: velocity in km/s.
-        '''
+        '''Convert a velocity from natural units (c=1) to km/s.
+        Usage: vkms=surrkick.convert.kms(vnat)'''
 
         return x * 299792.458
 
@@ -262,32 +147,16 @@ class convert(object):
 
 @singleton
 class surrogate(object):
-
-    '''
-    Initialize the NRSur7dq2 surrogate model. This uses a singleton pattern, which means there can only be one instance of this class.
-    '''
+    '''Initialize the NRSur7dq2 surrogate model described in arXiv:1705.07089. This uses a singleton pattern, which means there can only be one instance of this class.'''
 
     def __init__(self):
-
-        '''
-        Initialize the `surrogate` class
-        '''
+        '''Placeholder'''
 
         self._sur=None
 
     def sur(self):
-
-        '''
-        Initialize from file `NRSur7dq2.h5`
-
-        **Call:**
-
-            sur=surrogate().sur()
-
-        **Returns:**
-
-        - `sur`: surrogate class.
-        '''
+        '''Load surrogate from file NRSur7dq2.h5.
+        Usage: sur=surrkick.surrogate().sur()'''
 
         if self._sur==None:
             self._sur = NRSur7dq2.NRSurrogate7dq2('NRSur7dq2.h5')
@@ -297,27 +166,50 @@ class surrogate(object):
 class surrkick(object):
 
     '''
-    Extract energy, linear momentum and angular momentum emitted in gravitational waves from a waveform surrogate model.
+    Extract energy, linear momentum and angular momentum emitted in gravitational waves from a waveform surrogate model. We use a frame where the orbital angular momentum is along the z axis and the heavier (lighter) is on the positive (negative) x-axis at the reference time `t_ref`.
+    Usage: sk=surrkick.surrkick(q=1,chi1=[0,0,0],chi2=[0,0,0],t_ref=-100)
+    Parameters:
+    - `q`: binary mass ratio in the range 1:1 to 2:1. Can handle both conventions: q in [0.5,1] or [1,2].
+    - `chi1`: spin vector of the heavier BH.
+    - `chi2`: spin vector of the lighter BH.
+    - `t_ref`: reference time at which spins are specified (must be -4500<=t_ref<=-100)
     '''
 
     def __init__(self,q=1,chi1=[0,0,0],chi2=[0,0,0],t_ref=-100):
-
         '''
-        Initialize the `surrkick` class
+        Initialize the `surrkick` class.
         '''
-        
-        self.sur=surrogate().sur()    # Initialize the surrogate. Note it's a singleton
-        self.q = max(q,1/q)           # Make sure q>1 in this class, that's what NRSur7dq2 wants
-        self.chi1 = np.array(chi1)    # chi1 is the spin of the larger BH
-        self.chi2 = np.array(chi2)    # chi2 is the spin of the smaller BH
-        self.times = self.sur.t_coorb # Short name for the time nodes
 
-        assert t_ref>=-4500 and t_ref<=-100
-        if t_ref==-4500:
+        self.sur=surrogate().sur()
+        '''Initialize the surrogate. Note it's a singleton'''
+
+
+        self.q = max(q,1/q)
+        '''Binary mass ratio in the range 1:1 to 2:1.
+        Usage: q=surrkick.surrkick().q'''
+
+        self.chi1 = np.array(chi1)
+        '''Spin vector of the heavier BH.
+        Usage: chi1=surrkick.surrkick().chi1'''
+
+        self.chi2 = np.array(chi2)
+        '''Spin vector of the lighter BH.
+        Usage: chi2=surrkick.surrkick().chi2'''
+
+        self.times = self.sur.t_coorb
+        '''Time nodes where quantities are evaluated.
+        Usage: times=surrkick.surrkick().times'''
+
+        # Check the reference time makes sense
+        self.t_ref=t_ref
+        '''Reference time at which spins are specified (must be -4500<=t_ref<=-100).
+        Usage: t_ref=surrkick.surrkick().t_ref'''
+
+        assert self.t_ref>=-4500 and self.t_ref<=-100 # Check you're in the regions where spins are OK.
+        if t_ref==-4500: # This is the default value NRSur7dq2, which wants a None
             self.t_ref = None
-        else:
-            self.t_ref=t_ref
 
+        # Hidden variables for lazy loading
         self._hsample = None
         self._hdotsample = None
         self._lmax = None
@@ -332,22 +224,30 @@ class surrkick(object):
         self._Jrad = None
         self._xoft = None
 
+
+
     @property
     def hsample(self):
-        '''Extract modes of strain h from the surrogate, evaluated at the surrogate time nodes.'''
+        '''Modes of the gravitational-wave strain h=hp-i*hc evaluated at the surrogate time nodes. Returns a dictiornary with keys (l,m).
+        Usage: hsample=surrkick.surrkick().hsample; hsample[l,m]'''
+
         if self._hsample is None:
             self._hsample = self.sur(self.q, self.chi1, self.chi2,t=self.times,t_ref=self.t_ref) # Returns a python dictionary with keys (l,m)
         return self._hsample
 
     @property
     def lmax(self):
-        ''' Max l mode available in the surrogate model'''
+        '''Largest l mode available.
+        Usage: lmax=surrkick.surrkick().lmax'''
+
         if self._lmax is None:
             self._lmax = sorted(self.hsample.keys())[-1][0]
         return self._lmax
 
     def h(self,l,m):
-        '''Correct the strain values to return zero if either l or m are not allowed (this is how the expressions of arXiv:0707.4654 are supposed to be used).'''
+        '''Correct the strain values to return zero if either l or m are not allowed (this is how the expressions of arXiv:0707.4654 are supposed to be used). Returns a single mode.
+        Usage: hlm=surrkick.surrkick().h(l,m)'''
+
         if l<2 or l>self.lmax:
             return np.zeros(len(self.times),dtype=complex)
         elif m<-l or m>l:
@@ -357,7 +257,9 @@ class surrkick(object):
 
     @property
     def hdotsample(self):
-        '''Derivative of the strain at the time nodes. First interpolate the h with a spline, derivate the spline and evaluate that derivative at the nodes.'''
+        '''Derivative of the strain at the time nodes. First interpolate the h with a standard spline, then derivate the spline and evaluate that derivative at the time nodes. Returns a dictiornary with keys (l,m).
+        Usage: hdotsample=surrkick.surrkick().hdotsample; hdotsample[l,m]'''
+
         if self._hdotsample is None:
 
             self._hdotsample =  {k: spline(self.times,v.real).derivative()(self.times)+1j*spline(self.times,v.imag).derivative()(self.times) for k, v in self.hsample.items()}
@@ -365,7 +267,9 @@ class surrkick(object):
         return self._hdotsample
 
     def hdot(self,l,m):
-        '''Correct the strain derivative values to return zero if either l or m are not allowed (this is how the expressions of arXiv:0707.4654 are supposed to be used).'''
+        '''Correct the hdot values to return zero if either l or m are not allowed (this is how the expressions of arXiv:0707.4654 are supposed to be used). Returns a single mode.
+        Usage: hdotlm=surrkick.surrkick().hdot(l,m)'''
+
         if l<2 or l>self.lmax:
             return np.zeros(len(self.times),dtype=complex)
         elif m<-l or m>l:
@@ -373,16 +277,17 @@ class surrkick(object):
         else:
             return self.hdotsample[l,m]
 
-
     @property
     def dEdt(self):
-        '''Implement Eq. (3.8) of arXiv:0707.4654 for the linear momentum flux. Note that the modes provided by the surrogate models are actually h*(r/M) extracted as r=infinity, so the r^2 factor is already in there.'''
+        '''Implement Eq. (3.8) of arXiv:0707.4654 for the energy momentum flux. Note that the modes provided by the surrogate models are actually h*(r/M) extracted as r=infinity, so the r^2 factor is already in there.
+        Usage: dEdt=surrkick.surrkick().dEdt
+        '''
 
         if self._dEdt is None:
             dEdt = 0
             for l,m in summodes.single(self.lmax):
 
-                # Eq. 3.8
+                # Eq. (3.8)
                 dEdt += (1/(16*np.pi)) * np.abs(self.hdot(l,m))**2
 
             self._dEdt = dEdt
@@ -391,23 +296,28 @@ class surrkick(object):
 
     @property
     def Eoft(self):
+        '''Radiated energy as a function of time. Time integral of Eq. (3.8) of arXiv:0707.4654, evaluated at the time nodes. We first interpolate with a spline and then integrate analytically.
+        Usage: Eoft=surrkick.surrkick().Eoft'''
+
         if self._Eoft is None:
             # The integral of a spline is called antiderivative (mmmh...)
-
             origin=0
             self._Eoft = spline(self.times,self.dEdt).antiderivative()(self.times)-origin
         return self._Eoft
 
     @property
     def Erad(self):
-        ''' Total energy momentum radiated'''
+        ''' Total energy radiated, i.e. E(t) at the last time node.
+        Usage: Erad=surrkick.surrkick().Erad'''
+
         if self._Erad is None:
             self._Erad = self.Eoft[-1]
         return self._Erad
 
     @property
     def dPdt(self):
-        '''Implement Eq. (3.14-3.15) of arXiv:0707.4654 for the linear momentum flux. Note that the modes provided by the surrogate models are actually h*(r/M) extracted as r=infinity, so the r^2 factor is already in there. '''
+        '''Implement Eq. (3.14-3.15) of arXiv:0707.4654 for the three component of the linear momentum momentum flux. Note that the modes provided by the surrogate models are actually h*(r/M) extracted as r=infinity, so the r^2 factor is already in there. Returned array has size len(times)x3.
+        Usage: dPdt=surrkick.surrkick().dPdt'''
 
         if self._dPdt is None:
 
@@ -426,58 +336,63 @@ class surrkick(object):
             assert max(dPzdt.imag)<1e-6 # Check...
             dPzdt=dPzdt.real # Kill the imaginary part
 
-
             self._dPdt = np.transpose([dPxdt,dPydt,dPzdt])
 
         return self._dPdt
 
     @property
     def Poft(self):
+        '''Radiated linear momentum as a function of time. Time integral of Eq. (3.14-3.15) of arXiv:0707.4654, evaluated at the time nodes. We first interpolate with a spline and then integrate analytically.
+        Usage: Poft=surrkick.surrkick().Poft'''
+
         if self._Poft is None:
             # The integral of a spline is called antiderivative (mmmh...)
-
-            #print("here")
-            #origin = [np.average(x) for x in np.transpose(self.dvdt[0:100])]
             origin=[0,0,0]
-            #origin = np.array([spline(self.times,v).antiderivative()(self.times[30])  for v in np.transpose(self.dvdt)])
             self._Poft = np.transpose([spline(self.times,v).antiderivative()(self.times)-o  for v,o in zip(np.transpose(self.dPdt),origin)])
-            #print(origin)
-            #print(self._v[-1])
-            #print("")
-            #sys.exit()
         return self._Poft
 
     @property
     def Prad(self):
-        ''' Total linear momentum radiated'''
+        '''Total linear momentum radiated, i.e. the norm of [Px(t),Py(t),Pz(t)] at the last time node.
+        Usage: Prad=surrkick.surrkick().Prad'''
+
         if self._Prad is None:
             self._Prad = np.linalg.norm(self.Poft[-1])
         return self._Prad
 
     @property
     def voft(self):
-        ''' Velocity of the remnant is minus the emitted momentum'''
+        '''Velocity of the center of mass, i.e. minus the momentum radiated.
+        Usage: voft=surrkick.surrkick().voft'''
+
         return -self.Poft
 
     @property
     def kick(self):
-        '''Final kick velocity'''
+        '''Final kick velocity, equal to the total linear momentum radiated.
+        Usage: kick=surrkick.surrkick().kick'''
+
         return self.Prad
 
     @property
     def kickcomp(self):
-        '''Components of the kick in the same xyz plane of the surrogate'''
+        '''Components of the final kick in the xyz frame of the surrogate
+        Usage: vkx,vky,vkz=surrkick.surrkick().kick'''
+
         return self.voft[-1]
 
     @property
     def kickdir(self):
-        '''Kick direction in the same xyz plane of the surrogate'''
+        '''Direction of the final kick in the xyz frame of the surrogate
+        Usage: vkhatx,vkhaty,vkhatz=surrkick.surrkick().kick'''
+
         return self.kickcomp/self.kick
 
 
     @property
     def dJdt(self):
-        '''Implement Eq. (3.22-3.24) of arXiv:0707.4654 for the linear momentum flux. Note that the modes provided by the surrogate models are actually h*(r/M) extracted as r=infinity, so the r^2 factor is already in there. '''
+        '''Implement Eq. (3.22-3.24) of arXiv:0707.4654 for the three component of the angular momentum momentum flux. Note that the modes provided by the surrogate models are actually h*(r/M) extracted as r=infinity, so the r^2 factor is already in there. Returned array has size len(times)x3.
+        Usage: dPdt=surrkick.surrkick().dPdt'''
 
         if self._dJdt is None:
 
@@ -505,6 +420,9 @@ class surrkick(object):
 
     @property
     def Joft(self):
+        '''Radiated angular momentum as a function of time. Time integral of Eq. (3.22-3.24) of arXiv:0707.4654, evaluated at the time nodes. We first interpolate with a spline and then integrate analytically.
+        Usage: Joft=surrkick.surrkick().Joft'''
+
         if self._Joft is None:
 
             # The integral of a spline is called antiderivative (mmmh...)
@@ -515,13 +433,18 @@ class surrkick(object):
 
     @property
     def Jrad(self):
-        ''' Total linear momentum radiated'''
+        '''Total angular momentum radiated, i.e. the norm of [Jx(t),Jy(t),Jz(t)] at the last time node.
+        Usage: Jrad=surrkick.surrkick().Jrad'''
+        
         if self._Jrad is None:
             self._Jrad = np.linalg.norm(self.Joft[-1])
         return self._Jrad
 
     @property
     def xoft(self):
+        '''Trajectory of the spacetime center of mass, i.e. time integral of -P(t), where P is the linear momentum radiated in GWs.
+        Usage: xoft=surrkick.surrkick().xoft'''
+
         if self._xoft is None:
             # The integral of a spline is called antiderivative (mmmh...)
 
@@ -539,7 +462,9 @@ class surrkick(object):
 
 
 def project(timeseries,direction):
-    ''' Project a 3D time series along some direction'''
+    '''Project a 3D time series along some direction.
+    Usage projection=project(timeseries, direction)'''
+
     return np.array([np.dot(t,direction) for t in timeseries])
 
 
@@ -1631,8 +1556,11 @@ class plots(object):
                 theta1=np.arccos(np.random.uniform(-1,1))
                 theta2=np.arccos(np.random.uniform(-1,1))
                 deltaphi = np.random.uniform(0,2*np.pi)
-                bigTheta = np.random.uniform(0,2*np.pi)
-                fk=fitkick(q,chi1m,chi2m,theta1,theta2,deltaphi,bigTheta)
+                #bigTheta = np.random.uniform(0,2*np.pi)
+                #fk=fitkick(q,chi1m,chi2m,theta1,theta2,deltaphi,bigTheta)
+                dummy,dummy,dummy,S1,S2=precession.get_fixed(q,chi1m,chi2m)
+                fk=precession.finalkick(theta1,theta2,deltaphi,q,S1,S2,maxkick=False,kms=False,more=False)
+
 
                 return [sk.Erad,sk.kick,sk.Jrad,fk]
 
@@ -1744,13 +1672,15 @@ class plots(object):
         print("median", np.median(timesfk))
 ########################################
 if __name__ == "__main__":
+
+
     #print(convert.kms(0.007))
 
-    plots.timing()
+    #plots.timing()
 
     #plots.normprofiles()
 
-    #plots.explore()
+    plots.explore()
     #plots.explore()
     #plots.timing()
     #plots.lineofsight()
