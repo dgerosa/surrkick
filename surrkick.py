@@ -556,7 +556,7 @@ class plots(object):
     '''Produce plots of our paper FIX_PAPER_REF.'''
 
     def plottingstuff(function):
-        '''Python decorator to handle plotting, including defining all defaults and storing the final pdf. Just add @plottingstuff at any methond of the plots class.'''
+        '''Python decorator to handle plotting, including defining all defaults and storing the final pdf. Just add @plottingstuff to any methond of the plots class.'''
 
         #def wrapper(*args, **kw):
         def wrapper(self):
@@ -601,6 +601,76 @@ class plots(object):
                 f.clf()
             pp.close()
         return wrapper
+
+
+    def animate(function):
+        '''Python decorator to handle animations, including defining all defaults and storing the final movie. Just add @animate to any methond of the plots class.'''
+
+        #def wrapper(*args, **kw):
+        def wrapper(self):
+            print("Animation:", function.__name__+".mpg/h264")
+
+
+            # Before function call
+            global plt,AutoMinorLocator,MultipleLocator
+            from matplotlib import use #Useful when working on SSH
+            use('Agg')
+            from matplotlib import rc
+            font = {'family':'serif','serif':['cmr10'],'weight' : 'medium','size' : 16}
+            rc('font', **font)
+            rc('text',usetex=True)
+            import matplotlib
+            matplotlib.rcParams['text.latex.preamble']=[r"\usepackage{amsmath}"]
+            rc('figure',max_open_warning=1000)
+            rc('xtick',top=True)
+            rc('ytick',right=True)
+            import matplotlib.pyplot as plt
+            from mpl_toolkits.mplot3d import Axes3D
+            from matplotlib.backends.backend_pdf import PdfPages
+            from matplotlib.ticker import AutoMinorLocator,MultipleLocator
+
+            figs = function(self)
+
+            try:
+                len(figs[0])
+            except:
+                figs=[figs]
+
+
+            for j,fig in enumerate(tqdm(figs)):
+
+                for i,f in enumerate(tqdm(fig)):
+
+                    # Filter our annoying "elementwise comparison failed" warning (something related to the matplotlib backend and future versions)
+                    with warnings.catch_warnings():
+                        warnings.simplefilter(action='ignore', category=FutureWarning)
+                        framename = function.__name__+"_"+str(j)+"_"+"%05d.png"%i
+                        f.savefig(framename, bbox_inches='tight',format='png',dpi = 150)
+                    f.clf()
+
+                fps = 15 #The movie is faster if fps is large
+                mpg_file=True
+                youtube=True
+                remove_frame=False
+                if mpg_file: # Small mpg file
+                    command="mencoder mf://"+function.__name__+"_"+str(j)+"*.png -mf type=png:fps="+str(int(fps))+" -ovc copy -oac copy -o "+function.__name__+"_"+str(j)+".mpg"
+                    os.system(command)
+
+                if youtube: # Raw video format. To be uploaded on YouTube
+                    command="mencoder mf://"+function.__name__+"_"+str(j)+"*.png -mf type=png:fps="+str(int(fps))+" -ovc x264 -lavcopts vcodec=libx264 -o "+function.__name__+"_"+str(j)+".h264"
+                    os.system(command)
+
+                if remove_frame:
+                    command="rm -f "+function.__name__+"_"+str(j)+"*.png temp"
+                    os.system(command)
+
+
+
+
+        return wrapper
+
+
+
 
     # # TODO: I don't need this anymore
     # @classmethod
@@ -845,6 +915,157 @@ class plots(object):
             allfig.append(fig)
 
         return allfig
+
+
+    @classmethod
+    @animate
+    def recoil(self):
+        '''Fig. FIX_PAPER_FIG of FIX_PAPER_REF.'''
+
+        allfig=[]
+
+        # Left panel
+        if True:
+
+            q=0.5
+            chi1=[0,0,0]
+            chi2=[0,0,0]
+
+            sk = surrkick(q=q , chi1=chi1,chi2=chi2)
+
+            figs=[]
+            for tilltime in tqdm(sk.times[:10]):
+
+                fig = plt.figure(figsize=(6,6))
+                ax=fig.add_axes([0,0,0.7,0.7], projection='3d')
+
+
+                x0,y0,z0=sk.xoft[sk.times==min(abs(sk.times))][0]
+
+                x,y,z=np.transpose(sk.xoft[sk.times<tilltime])
+
+                ax.plot(x-x0,y-y0,z-z0)
+                ax.scatter(0,0,0,marker='.',s=60,alpha=0.5)
+                x,y,z=np.transpose(sk.xoft)
+                vx,vy,vz=np.transpose(sk.voft)
+
+                ax.set_xlim(-0.004,0.0045)
+                ax.set_ylim(-0.0025,0.006)
+                ax.set_zlim(-0.006,0.0035)
+                ax.set_xticklabels(ax.get_xticks(), fontsize=9)
+                ax.set_yticklabels(ax.get_yticks(), fontsize=9)
+                ax.set_zticklabels(ax.get_zticks(), fontsize=9)
+                fig.text(0.38,0.45,'$q='+str(q)+'$\n$\\chi_1=0$\n${\\chi_2}=0$\n$v_k='+str(int(convert.kms(sk.kick)))+'{\\rm \;km/s}$',transform=fig.transFigure)
+                ax.set_xlabel("$x\;\;[M]$",fontsize=13)
+                ax.set_ylabel("$y\;\;[M]$",fontsize=13)
+                ax.set_zlabel("$z\;\;[M]$",fontsize=13)
+                ax.xaxis.labelpad=6
+                ax.yaxis.labelpad=8
+                ax.zaxis.labelpad=4
+                ax.xaxis.set_minor_locator(AutoMinorLocator())
+                ax.yaxis.set_minor_locator(AutoMinorLocator())
+                ax.zaxis.set_minor_locator(AutoMinorLocator())
+
+                figs.append(fig)
+
+            allfig.append(figs)
+
+        # Middle panel
+        if False:
+
+            fig = plt.figure(figsize=(6,6))
+            ax=fig.add_axes([0,0,0.7,0.7], projection='3d')
+
+            q=0.5
+            chi1=[0.8,0,0]
+            chi2=[-0.8,0,0]
+
+            sk = surrkick(q=q , chi1=chi1, chi2=chi2)
+            x0,y0,z0=sk.xoft[sk.times==min(abs(sk.times))][0]
+            x,y,z=np.transpose(sk.xoft[np.logical_and(sk.times>-3500,sk.times<16)])
+            ax.plot(x-x0,y-y0,z-z0)
+            ax.scatter(0,0,0,marker='.',s=40,alpha=0.5)
+            x,y,z=np.transpose(sk.xoft)
+            vx,vy,vz=np.transpose(sk.voft)
+
+            for t in [-20,-3,3,3,10,14]:
+                i = np.abs(sk.times - t).argmin()
+                v=np.linalg.norm([vx[i],vy[i],vz[i]])
+                arrowsize=2e-3
+                ax.quiver(x[i]-x0,y[i]-y0,z[i]-z0,vx[i]*arrowsize/v,vy[i]*arrowsize/v,vz[i]*arrowsize/v,length=0.00001,arrow_length_ratio=30000,alpha=0.5)
+
+            ax.set_xlim(-0.005,0.005)
+            ax.set_ylim(-0.005,0.005)
+            ax.set_zlim(-0.005,0.005)
+            ax.set_xticklabels(ax.get_xticks(), fontsize=9)
+            ax.set_yticklabels(ax.get_yticks(), fontsize=9)
+            ax.set_zticklabels(ax.get_zticks(), fontsize=9)
+            fig.text(0.1,0.4,'$q='+str(q)+'$\n$\\boldsymbol{\\chi_1}=[0.8,0,0]$\n$\\boldsymbol{\\chi_2}=[-0.8,0,0]$\n$v_k='+str(int(convert.kms(sk.kick)))+'{\\rm \;km/s}$',transform=fig.transFigure)
+            ax.set_xlabel("$x\;\;[M]$",fontsize=13)
+            ax.set_ylabel("$y\;\;[M]$",fontsize=13)
+            ax.set_zlabel("$z\;\;[M]$",fontsize=13)
+            ax.xaxis.labelpad=6
+            ax.yaxis.labelpad=8
+            ax.zaxis.labelpad=4
+            ax.xaxis.set_minor_locator(AutoMinorLocator())
+            ax.yaxis.set_minor_locator(AutoMinorLocator())
+            ax.zaxis.set_minor_locator(AutoMinorLocator())
+
+            allfig.append(fig)
+
+        # Right panel
+        if False:
+
+            fig = plt.figure(figsize=(6,6))
+            ax=fig.add_axes([0,0,0.7,0.7], projection='3d')
+
+            q=1
+            chi1=[0.81616392, 0.01773234, 0.57754829]
+            chi1=np.array(chi1)*0.8/np.linalg.norm(chi1)
+            chi2=[-0.87810809, 0.06485156, 0.47404689]
+            chi2=np.array(chi2)*0.8/np.linalg.norm(chi2)
+
+            sk = surrkick(q=q , chi1=chi1, chi2=chi2)
+            x0,y0,z0=sk.xoft[sk.times==min(abs(sk.times))][0]
+            x,y,z=np.transpose(sk.xoft[np.logical_and(sk.times>-4500,sk.times<7.2)])
+            ax.plot(x-x0,y-y0,z-z0)
+            ax.scatter(0,0,0,marker='.',s=40,alpha=0.5)
+            x,y,z=np.transpose(sk.xoft)
+            vx,vy,vz=np.transpose(sk.voft)
+
+            for t in [-9,3,4]:
+                i = np.abs(sk.times - t).argmin()
+                v=np.linalg.norm([vx[i],vy[i],vz[i]])
+                arrowsize=2e-3
+                ax.quiver(x[i]-x0,y[i]-y0,z[i]-z0,vx[i]*arrowsize/v,vy[i]*arrowsize/v,vz[i]*arrowsize/v,length=0.00001,arrow_length_ratio=30000,alpha=0.5)
+
+            ax.set_xlim(-0.006,0.005)
+            ax.set_ylim(-0.006,0.005)
+            ax.set_zlim(0,0.011)
+            ax.set_xticklabels(ax.get_xticks(), fontsize=9)
+            ax.set_yticklabels(ax.get_yticks(), fontsize=9)
+            ax.set_zticklabels(ax.get_zticks(), fontsize=9)
+            fig.text(0.09,0.45,'$q='+str(q)+'$\n$\\boldsymbol{\\chi_1}=['+
+                str(round(chi1[0],2))+','+str(round(chi1[1],2))+','+str(round(chi1[2],2))+
+                ']$\n$\\boldsymbol{\\chi_2}=['+
+                str(round(chi2[0],2))+','+str(round(chi2[1],2))+','+str(round(chi2[2],2))+
+                ']$\n$v_k='+str(int(convert.kms(sk.kick)))+'{\\rm \;km/s}$',transform=fig.transFigure)
+            ax.set_xlabel("$x\;\;[M]$",fontsize=13)
+            ax.set_ylabel("$y\;\;[M]$",fontsize=13)
+            ax.set_zlabel("$z\;\;[M]$",fontsize=13)
+            ax.xaxis.labelpad=6
+            ax.yaxis.labelpad=8
+            ax.zaxis.labelpad=4
+
+            allfig.append(fig)
+
+        return allfig
+
+
+
+
+
+
 
 
     @classmethod
@@ -1221,16 +1442,16 @@ class plots(object):
             data= list(tqdm(parmap(_kickdistr, range(dim)),total=dim))
 
             with open(filename, 'wb') as f: pickle.dump(zip(*data), f)
-        with open(filename, 'rb') as f: Erad,kicks,Jrad,fk = pickle.load(f)
+        with open(filename, 'rb') as f: q,chi1,chi2,kicks = pickle.load(f)
 
         mk=max(kicks)
+        print(mk)
         maxind= kicks==mk
-        print("Largest kick:", mk,convert.kms(mk))
+        print("Largest kick:", mk, convert.kms(mk))
         chi1m= np.array(chi1)[maxind][0]/0.8
         chi2m= np.array(chi2)[maxind][0]/0.8
-        print("chi1:", chi1m)
-        print("chi2:",chi2m)
-
+        print("chi1=", chi1m, 'theta1=',np.degrees(np.arccos(chi1m[-1])))
+        print("chi2=", chi2m, 'theta2=',np.degrees(np.arccos(chi2m[-1])))
         return []
 
     @classmethod
@@ -1440,12 +1661,16 @@ class plots(object):
 
 
 
+
+
+
 ########################################
 if __name__ == "__main__":
     pass
 
     #plots.nospinprofiles()
-    plots.findlarge()
+    #plots.findlarge()
     #plots.timing()
-
+    plots.recoil()
+    #plots.explore()
     #plots.normprofiles()
