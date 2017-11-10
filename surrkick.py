@@ -929,7 +929,7 @@ class plots(object):
         for i in tqdm(np.linspace(0,1,dim)):
             phi = np.random.uniform(0,2*np.pi)
             theta = np.arccos(np.random.uniform(-1,1))
-            randomvec= [np.sin(theta)*np.cos(phi), np.sin(theta)*np.sin(phi), np.cos(theta)
+            randomvec= [np.sin(theta)*np.cos(phi), np.sin(theta)*np.sin(phi), np.cos(theta)]
             store.append([randomvec,project(sk.voft,randomvec)[-1]])
 
         store=sorted(store, key=lambda x:x[1])
@@ -1372,7 +1372,6 @@ class plots(object):
         '''Fig. FIX_PAPER_FIG of FIX_PAPER_REF'''
 
         timessur=[]
-        timesfk=[]
 
         for i in range(1000):
 
@@ -1386,32 +1385,25 @@ class plots(object):
             r = 0.8*(np.random.uniform(0,1))**(1./3.)
             chi2= [ r*np.sin(theta)*np.cos(phi), r*np.sin(theta)*np.sin(phi), r*np.cos(theta) ]
 
+            #t0=time.time()
+            #sk= surrkick(q=q,chi1=chi1,chi2=chi2).hsample
+            #tsur=time.time()-t0
+            #print(tsur)
+
+
             t0=time.time()
             sk= surrkick(q=q,chi1=chi1,chi2=chi2).kick
             tsur=time.time()-t0
+            print(tsur)
 
-            q=np.random.uniform(0.5,1)
-            chi1m = 0.8*(np.random.uniform(0,1))**(1./3.)
-            chi2m = 0.8*(np.random.uniform(0,1))**(1./3.)
-            theta1=np.arccos(np.random.uniform(-1,1))
-            theta2=np.arccos(np.random.uniform(-1,1))
-            deltaphi = np.random.uniform(0,2*np.pi)
-            bigTheta = np.random.uniform(0,2*np.pi)
-
-            t0=time.time()
-            fk=fitkick(q,chi1m,chi2m,theta1,theta2,deltaphi,bigTheta)
-            tfk=time.time()-t0
 
             timessur.append(tsur)
-            timesfk.append(tfk)
 
-        print("Surrogate time, mean:", np.mean(timessur))
-        print("Surrogate time, median:", np.median(timessur))
-        print("Fitting formula time, mean:", np.mean(timesfk))
-        print("Fitting formula time, median:", np.median(timesfk))
+        print("Mean:", np.mean(timessur))
+        print("Median:", np.median(timessur))
 
 ########################################
 if __name__ == "__main__":
 
 
-    plots.explore()
+    plots.timing()
