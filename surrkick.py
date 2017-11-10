@@ -16,6 +16,7 @@ from tqdm import tqdm
 import cPickle as pickle
 import multiprocessing, pathos.multiprocessing
 import precession
+import warnings
 
 __author__ = "Davide Gerosa"
 __email__ = "dgerosa@caltech.edu"
@@ -111,6 +112,14 @@ class convert(object):
 
         return x * 299792.458
 
+    @staticmethod
+    def cisone(x):
+        '''Convert a velocity from km/s to natural units (c=1)
+        Usage: vnat=surrkick.convert.cisone(vkms)'''
+
+        return x / 299792.458
+
+
     # TODO: I think I can remove these.
     # @staticmethod
     # def anglestocoords(chi1mag,chi2mag,theta1,theta2,deltaphi,phi1):
@@ -147,11 +156,10 @@ class convert(object):
 
 @singleton
 class surrogate(object):
-    '''Initialize the NRSur7dq2 surrogate model described in arXiv:1705.07089. This uses a singleton pattern, which means there can only be one instance of this class.'''
+    '''Initialize the NRSur7dq2 surrogate model described in arXiv:1705.07089. The only purpose of this class is to wrap the surrogate with a singleton pattern (which means there can only be one instance of this class, and creation of additional instances just return the first one).'''
 
     def __init__(self):
         '''Placeholder'''
-
         self._sur=None
 
     def sur(self):
@@ -159,7 +167,8 @@ class surrogate(object):
         Usage: sur=surrkick.surrogate().sur()'''
 
         if self._sur==None:
-            self._sur = NRSur7dq2.NRSurrogate7dq2('NRSur7dq2.h5')
+            self._sur= NRSur7dq2.NRSurrogate7dq2()
+            #self._sur = NRSur7dq2.NRSurrogate7dq2('NRSur7dq2.h5')
         return self._sur
 
 
@@ -551,8 +560,8 @@ class plots(object):
 
         #def wrapper(*args, **kw):
         def wrapper(self):
+            print("Plotting:", function.__name__+".pdf")
 
-            self.map = pathos.multiprocessing.ProcessingPool(multiprocessing.cpu_count()).imap
 
             # Before function call
             global plt,AutoMinorLocator,MultipleLocator
@@ -580,9 +589,15 @@ class plots(object):
             try:
                 len(fig)
             except:
+
                 fig=[fig]
             for f in tqdm(fig):
-                f.savefig(pp, format='pdf',bbox_inches='tight')
+
+                # Filter our annoying "elementwise comparison failed" warning (something related to the matplotlib backend and future versions)
+                with warnings.catch_warnings():
+                    warnings.simplefilter(action='ignore', category=FutureWarning)
+
+                    f.savefig(pp, format='pdf',bbox_inches='tight')
                 f.clf()
             pp.close()
         return wrapper
@@ -655,8 +670,7 @@ class plots(object):
         axJ = [figJ.add_axes([0,-i*(S+H),L,H]) for i in [0,1,2,3]]
 
         q_vals = np.linspace(1,0.5,8)
-        for i,q in enumerate(q_vals):
-            print(q)
+        for i,q in enumerate(tqdm(q_vals)):
             color=plt.cm.copper(i/len(q_vals))
             b = surrkick(q=q)
             dashes=''
@@ -835,6 +849,162 @@ class plots(object):
 
     @classmethod
     @plottingstuff
+    def hangupErad(self):
+        '''Fig. FIX_PAPER_FIG of FIX_PAPER_REF'''
+
+        figs=[]
+        L=0.7
+        H=0.35
+        S=0.05
+        fig = plt.figure(figsize=(6,6))
+        ax = fig.add_axes([0,0,L,H])
+
+        q=0.5
+        chimag=0.8
+        sks=[ surrkick(q=q,chi1=[0,0,chimag],chi2=[0,0,chimag]),
+            surrkick(q=q,chi1=[0,0,-chimag],chi2=[0,0,-chimag]),
+            surrkick(q=q,chi1=[0,0,chimag],chi2=[0,0,-chimag]),
+            surrkick(q=q, chi1=[0,0,-chimag],chi2=[0,0,chimag]),
+            surrkick(q=q, chi1=[0,0,0],chi2=[0,0,0])]
+        labels=["$\chi_i\!=\!0.8$, up-up","$\chi_i\!=\!0.8$, down-down","$\chi_i\!=\!0.8$, up-down","$\chi_i\!=\!0.8$, down-up","$\chi_i=0$"]
+        dashes=['',[15,5],[8,5],[2,2],[0.5,1]]
+        cols=['C0','C1','C2','C3','black']
+        for sk,l,d,c in tqdm(zip(sks,labels,dashes,cols)):
+            ax.plot(sk.times,sk.Eoft,alpha=0.4,lw=1,c=c)
+            ax.plot(sk.times,sk.Eoft,alpha=1,lw=2,c=c,dashes=d,label=l)
+
+        ax.legend(loc="upper left",fontsize=11,handlelength=5.5)
+        ax.text(0.8,0.1,'$q='+str(q)+'$',transform=ax.transAxes,linespacing=1.4)
+        ax.set_xlim(-50,50)
+        ax.yaxis.set_minor_locator(AutoMinorLocator())
+        ax.xaxis.set_minor_locator(AutoMinorLocator())
+        ax.set_xlabel("$t\;\;[M]$")
+        ax.set_ylim(0,0.08)
+        ax.set_ylabel("${E(t)} \;\;[M]$")
+
+        return fig
+
+    @classmethod
+    @plottingstuff
+    def spinaligned(self):
+        '''Fig. FIX_PAPER_FIG of FIX_PAPER_REF'''
+
+        figs=[]
+        L=0.7
+        H=0.3
+        S=0.05
+
+        for q in tqdm([1,0.5]):
+
+            fig = plt.figure(figsize=(6,6))
+            axs = [fig.add_axes([0,-i*(S+H),L,H]) for i in [0,1,2,3]]
+
+            chimag=0.8
+            sks=[ surrkick(q=q,chi1=[0,0,chimag],chi2=[0,0,chimag],t_ref=-100), surrkick(q=q,chi1=[0,0,-chimag],chi2=[0,0,-chimag],t_ref=-100),
+            surrkick(q=q,chi1=[0,0,chimag],chi2=[0,0,-chimag],t_ref=-100),
+            surrkick(q=q, chi1=[0,0,-chimag],chi2=[0,0,chimag],t_ref=-100)]
+            labels=["up-up","down-down","up-down","down-up"]
+            dashes=['',[15,5],[8,5],[2,2]]
+            cols=['C0','C1','C2','C3']
+            for sk,l,d,c in tqdm(zip(sks,labels,dashes,cols)):
+                axs[0].plot(sk.times,1./0.001*project(sk.voft,[1,0,0]),alpha=0.4,lw=1,c=c)
+                axs[0].plot(sk.times,1./0.001*project(sk.voft,[1,0,0]),alpha=1,lw=2,c=c,dashes=d)
+                axs[1].plot(sk.times,1./0.001*project(sk.voft,[0,1,0]),alpha=0.4,lw=1,c=c)
+                axs[1].plot(sk.times,1./0.001*project(sk.voft,[0,1,0]),alpha=1,lw=2,c=c,dashes=d)
+                axs[2].plot(sk.times,1./0.001*project(sk.voft,[0,0,1]),alpha=0.4,lw=1,c=c)
+                axs[2].plot(sk.times,1./0.001*project(sk.voft,[0,0,1]),alpha=1,lw=2,c=c,dashes=d,label=l)
+                axs[3].plot(sk.times,1./0.001*project(sk.voft,sk.kickdir),alpha=0.4,lw=1,c=c)
+                axs[3].plot(sk.times,1./0.001*project(sk.voft,sk.kickdir),alpha=1,lw=2,c=c,dashes=d)
+
+            axs[2].legend(loc="lower left",fontsize=14,ncol=2,handlelength=3.86)
+            axs[0].text(0.05,0.7,'$q='+str(q)+'$\n$\chi_1=\chi_2=0.8$',transform=axs[    0].transAxes,linespacing=1.4)
+            for ax in axs:
+                ax.set_xlim(-50,50)
+                ax.yaxis.set_major_locator(MultipleLocator(0.5))
+                ax.yaxis.set_minor_locator(MultipleLocator(0.25))
+                ax.xaxis.set_minor_locator(AutoMinorLocator())
+            for ax in axs[:-1]:
+                ax.set_xticklabels([])
+            for ax in [axs[-1]]:
+                ax.set_xlabel("$t\;\;[M]$")
+            for ax,d in zip(axs,["x","y","z","v_k"]):
+                ax.set_ylim(-1.4,1.4)
+                ax.set_ylabel("$\mathbf{v}(t) \cdot \mathbf{\hat "+d+"} \;\;[0.001c]$")
+
+            figs.append(fig)
+
+        return figs
+
+    @classmethod
+    @plottingstuff
+    def leftright(self):
+        '''Fig. FIX_PAPER_FIG of FIX_PAPER_REF'''
+
+        figs=[]
+        L=0.7
+        H=0.3
+        S=0.05
+        Z=0.35
+
+        for q in tqdm([1,0.5]):
+
+            fig = plt.figure(figsize=(6,6))
+            axs = [fig.add_axes([0,-i*(S+H),L,H]) for i in [0,1,2,3]]
+            axi = fig.add_axes([0,-1*(S+H)-S-Z*H,Z*L*1.2,Z*H])
+
+            chimag1=0.8
+            chimag2=0.8
+            sks=[ surrkick(q=q,chi1=[chimag1,0,0],chi2=[chimag2,0,0],t_ref=-125),
+            surrkick(q=q,chi1=[-chimag1,0,0],chi2=[-chimag2,0,0],t_ref=-125),
+            surrkick(q=q,chi1=[chimag1,0,0],chi2=[-chimag2,0,0],t_ref=-125),
+            surrkick(q=q, chi1=[-chimag1,0,0],chi2=[chimag2,0,0],t_ref=-125)]
+            labels=["right-right","left-left","right-left","left-right"]
+            dashes=['',[15,5],[8,5],[2,2]]
+            cols=['C0','C1','C2','C3']
+            for sk,l,d,c in tqdm(zip(sks,labels,dashes,cols)):
+                axs[0].plot(sk.times,1./0.001*project(sk.voft,[1,0,0]),alpha=0.4,lw=1,c=c)
+                axs[0].plot(sk.times,1./0.001*project(sk.voft,[1,0,0]),alpha=1,lw=2,c=c,dashes=d)
+                axs[1].plot(sk.times,1./0.001*project(sk.voft,[0,1,0]),alpha=0.4,lw=1,c=c)
+                axs[1].plot(sk.times,1./0.001*project(sk.voft,[0,1,0]),alpha=1,lw=2,c=c,dashes=d,label=l)
+                for ax in [axs[2],axi]:
+                    ax.plot(sk.times,1./0.001*project(sk.voft,[0,0,1]),alpha=0.4,lw=1,c=c)
+                    ax.plot(sk.times,1./0.001*project(sk.voft,[0,0,1]),alpha=1,lw=2,c=c,dashes=d)
+                axs[3].plot(sk.times,1./0.001*project(sk.voft,sk.kickdir),alpha=0.4,lw=1,c=c)
+                axs[3].plot(sk.times,1./0.001*project(sk.voft,sk.kickdir),alpha=1,lw=2,c=c,dashes=d)
+
+            axs[1].legend(loc="lower left",fontsize=14,ncol=2,handlelength=3.86)
+            axs[0].text(0.05,0.7,'$q='+str(q)+'$\n$\chi_1=\chi_2=0.8$',transform=axs[    0].transAxes,linespacing=1.4)
+            for ax in axs:
+                ax.set_xlim(-50,50)
+                ax.yaxis.set_major_locator(MultipleLocator(5))
+                ax.yaxis.set_minor_locator(MultipleLocator(1))
+                ax.xaxis.set_minor_locator(AutoMinorLocator())
+            for ax in axs[:-1]:
+                ax.set_xticklabels([])
+            for ax in [axs[-1]]:
+                ax.set_xlabel("$t\;\;[M]$")
+            for ax,d in zip(axs,["x","y","z","v_k"]):
+                ax.set_ylim(-10,10)
+                ax.set_ylabel("$\mathbf{v}(t) \cdot \mathbf{\hat "+d+"} \;\;[0.001c]$")
+            axi.set_xlim(-450,-150)
+            axi.set_ylim(-0.02,0.02)
+            axi.yaxis.tick_right()
+            axi.set_xticks([-400,-300,-200])
+            axi.set_yticks([-0.015,0,0.015])
+            axi.set_yticklabels(axi.get_yticks(),fontsize=8)
+            axi.xaxis.set_tick_params(pad=1)
+            axi.set_xticklabels(axi.get_xticks(),fontsize=8)
+            axi.yaxis.set_tick_params(pad=1)
+            axi.yaxis.set_ticks_position('right')
+            axi.xaxis.set_ticks_position('bottom')
+
+            figs.append(fig)
+
+        return figs
+
+
+    @classmethod
+    @plottingstuff
     def alphaseries(self):
         '''Fig. FIX_PAPER_FIG of FIX_PAPER_REF. This is similar to Fig 4 in arXiv:0707.0135.'''
 
@@ -893,7 +1063,7 @@ class plots(object):
 
         alpha_vals=np.linspace(-np.pi,np.pi,50)
         kick_vals=[]
-        for i, alpha in tqdm(enumerate(alpha_vals)):
+        for i, alpha in enumerate(tqdm(alpha_vals)):
             sk = surrkick(q=1, chi1=[chimag*np.cos(alpha),chimag*np.sin(alpha),0],chi2=[-chimag*np.cos(alpha),-chimag*np.sin(alpha),0])
             color=plt.cm.copper(i/len(alpha_vals))
             ax.plot(sk.times,1/0.001*project(sk.voft,sk.kickdir),color=color,alpha=0.8)
@@ -948,163 +1118,10 @@ class plots(object):
 
         return fig
 
-    @classmethod
-    @plottingstuff
-    def spinaligned(self):
-        '''Fig. FIX_PAPER_FIG of FIX_PAPER_REF'''
-
-        figs=[]
-        L=0.7
-        H=0.3
-        S=0.05
-
-        for q in [1,0.5]:
-
-            fig = plt.figure(figsize=(6,6))
-            axs = [fig.add_axes([0,-i*(S+H),L,H]) for i in [0,1,2,3]]
-
-            chimag=0.8
-            sks=[ surrkick(q=q,chi1=[0,0,chimag],chi2=[0,0,chimag],t_ref=-100), surrkick(q=q,chi1=[0,0,-chimag],chi2=[0,0,-chimag],t_ref=-100),
-            surrkick(q=q,chi1=[0,0,chimag],chi2=[0,0,-chimag],t_ref=-100),
-            surrkick(q=q, chi1=[0,0,-chimag],chi2=[0,0,chimag],t_ref=-100)]
-            labels=["up-up","down-down","up-down","down-up"]
-            dashes=['',[15,5],[8,5],[2,2]]
-            cols=['C0','C1','C2','C3']
-            for sk,l,d,c in zip(sks,labels,dashes,cols):
-                axs[0].plot(sk.times,1./0.001*project(sk.voft,[1,0,0]),alpha=0.4,lw=1,c=c)
-                axs[0].plot(sk.times,1./0.001*project(sk.voft,[1,0,0]),alpha=1,lw=2,c=c,dashes=d)
-                axs[1].plot(sk.times,1./0.001*project(sk.voft,[0,1,0]),alpha=0.4,lw=1,c=c)
-                axs[1].plot(sk.times,1./0.001*project(sk.voft,[0,1,0]),alpha=1,lw=2,c=c,dashes=d)
-                axs[2].plot(sk.times,1./0.001*project(sk.voft,[0,0,1]),alpha=0.4,lw=1,c=c)
-                axs[2].plot(sk.times,1./0.001*project(sk.voft,[0,0,1]),alpha=1,lw=2,c=c,dashes=d,label=l)
-                axs[3].plot(sk.times,1./0.001*project(sk.voft,sk.kickdir),alpha=0.4,lw=1,c=c)
-                axs[3].plot(sk.times,1./0.001*project(sk.voft,sk.kickdir),alpha=1,lw=2,c=c,dashes=d)
-
-            axs[2].legend(loc="lower left",fontsize=14,ncol=2,handlelength=3.86)
-            axs[0].text(0.05,0.7,'$q='+str(q)+'$\n$\chi_1=\chi_2=0.8$',transform=axs[    0].transAxes,linespacing=1.4)
-            for ax in axs:
-                ax.set_xlim(-50,50)
-                ax.yaxis.set_major_locator(MultipleLocator(0.5))
-                ax.yaxis.set_minor_locator(MultipleLocator(0.25))
-                ax.xaxis.set_minor_locator(AutoMinorLocator())
-            for ax in axs[:-1]:
-                ax.set_xticklabels([])
-            for ax in [axs[-1]]:
-                ax.set_xlabel("$t\;\;[M]$")
-            for ax,d in zip(axs,["x","y","z","v_k"]):
-                ax.set_ylim(-1.4,1.4)
-                ax.set_ylabel("$\mathbf{v}(t) \cdot \mathbf{\hat "+d+"} \;\;[0.001c]$")
-
-            figs.append(fig)
-
-        return figs
 
 
 
-    @classmethod
-    @plottingstuff
-    def hangupErad(self):
-        '''Fig. FIX_PAPER_FIG of FIX_PAPER_REF'''
 
-        figs=[]
-        L=0.7
-        H=0.35
-        S=0.05
-        fig = plt.figure(figsize=(6,6))
-        ax = fig.add_axes([0,0,L,H])
-
-        q=0.5
-        chimag=0.8
-        sks=[ surrkick(q=q,chi1=[0,0,chimag],chi2=[0,0,chimag]),
-            surrkick(q=q,chi1=[0,0,-chimag],chi2=[0,0,-chimag]),
-            surrkick(q=q,chi1=[0,0,chimag],chi2=[0,0,-chimag]),
-            surrkick(q=q, chi1=[0,0,-chimag],chi2=[0,0,chimag]),
-            surrkick(q=q, chi1=[0,0,0],chi2=[0,0,0])]
-        labels=["$\chi_i\!=\!0.8$, up-up","$\chi_i\!=\!0.8$, down-down","$\chi_i\!=\!0.8$, up-down","$\chi_i\!=\!0.8$, down-up","$\chi_i=0$"]
-        dashes=['',[15,5],[8,5],[2,2],[0.5,1]]
-        cols=['C0','C1','C2','C3','black']
-        for sk,l,d,c in zip(sks,labels,dashes,cols):
-            ax.plot(sk.times,sk.Eoft,alpha=0.4,lw=1,c=c)
-            ax.plot(sk.times,sk.Eoft,alpha=1,lw=2,c=c,dashes=d,label=l)
-
-        ax.legend(loc="upper left",fontsize=11,handlelength=5.5)
-        ax.text(0.8,0.1,'$q='+str(q)+'$',transform=ax.transAxes,linespacing=1.4)
-        ax.set_xlim(-50,50)
-        ax.yaxis.set_minor_locator(AutoMinorLocator())
-        ax.xaxis.set_minor_locator(AutoMinorLocator())
-        ax.set_xlabel("$t\;\;[M]$")
-        ax.set_ylim(0,0.08)
-        ax.set_ylabel("${E(t)} \;\;[M]$")
-
-        return fig
-
-
-    @classmethod
-    @plottingstuff
-    def leftright(self):
-        '''Fig. FIX_PAPER_FIG of FIX_PAPER_REF'''
-
-        figs=[]
-        L=0.7
-        H=0.3
-        S=0.05
-        Z=0.35
-
-        for q in [1,0.5]:
-
-            fig = plt.figure(figsize=(6,6))
-            axs = [fig.add_axes([0,-i*(S+H),L,H]) for i in [0,1,2,3]]
-            axi = fig.add_axes([0,-1*(S+H)-S-Z*H,Z*L*1.2,Z*H])
-
-            chimag1=0.8
-            chimag2=0.8
-            sks=[ surrkick(q=q,chi1=[chimag1,0,0],chi2=[chimag2,0,0],t_ref=-125),
-            surrkick(q=q,chi1=[-chimag1,0,0],chi2=[-chimag2,0,0],t_ref=-125),
-            surrkick(q=q,chi1=[chimag1,0,0],chi2=[-chimag2,0,0],t_ref=-125),
-            surrkick(q=q, chi1=[-chimag1,0,0],chi2=[chimag2,0,0],t_ref=-125)]
-            labels=["right-right","left-left","right-left","left-right"]
-            dashes=['',[15,5],[8,5],[2,2]]
-            cols=['C0','C1','C2','C3']
-            for sk,l,d,c in zip(sks,labels,dashes,cols):
-                axs[0].plot(sk.times,1./0.001*project(sk.voft,[1,0,0]),alpha=0.4,lw=1,c=c)
-                axs[0].plot(sk.times,1./0.001*project(sk.voft,[1,0,0]),alpha=1,lw=2,c=c,dashes=d)
-                axs[1].plot(sk.times,1./0.001*project(sk.voft,[0,1,0]),alpha=0.4,lw=1,c=c)
-                axs[1].plot(sk.times,1./0.001*project(sk.voft,[0,1,0]),alpha=1,lw=2,c=c,dashes=d,label=l)
-                for ax in [axs[2],axi]:
-                    ax.plot(sk.times,1./0.001*project(sk.voft,[0,0,1]),alpha=0.4,lw=1,c=c)
-                    ax.plot(sk.times,1./0.001*project(sk.voft,[0,0,1]),alpha=1,lw=2,c=c,dashes=d)
-                axs[3].plot(sk.times,1./0.001*project(sk.voft,sk.kickdir),alpha=0.4,lw=1,c=c)
-                axs[3].plot(sk.times,1./0.001*project(sk.voft,sk.kickdir),alpha=1,lw=2,c=c,dashes=d)
-
-            axs[1].legend(loc="lower left",fontsize=14,ncol=2,handlelength=3.86)
-            axs[0].text(0.05,0.7,'$q='+str(q)+'$\n$\chi_1=\chi_2=0.8$',transform=axs[    0].transAxes,linespacing=1.4)
-            for ax in axs:
-                ax.set_xlim(-50,50)
-                ax.yaxis.set_major_locator(MultipleLocator(5))
-                ax.yaxis.set_minor_locator(MultipleLocator(1))
-                ax.xaxis.set_minor_locator(AutoMinorLocator())
-            for ax in axs[:-1]:
-                ax.set_xticklabels([])
-            for ax in [axs[-1]]:
-                ax.set_xlabel("$t\;\;[M]$")
-            for ax,d in zip(axs,["x","y","z","v_k"]):
-                ax.set_ylim(-10,10)
-                ax.set_ylabel("$\mathbf{v}(t) \cdot \mathbf{\hat "+d+"} \;\;[0.001c]$")
-            axi.set_xlim(-450,-150)
-            axi.set_ylim(-0.02,0.02)
-            axi.yaxis.tick_right()
-            axi.set_xticks([-400,-300,-200])
-            axi.set_yticks([-0.015,0,0.015])
-            axi.set_yticklabels(axi.get_yticks(),fontsize=8)
-            axi.xaxis.set_tick_params(pad=1)
-            axi.set_xticklabels(axi.get_xticks(),fontsize=8)
-            axi.yaxis.set_tick_params(pad=1)
-            axi.yaxis.set_ticks_position('right')
-            axi.xaxis.set_ticks_position('bottom')
-
-            figs.append(fig)
-
-        return figs
     #
     # # TODO: can I remove tihs?
     # @classmethod
@@ -1173,14 +1190,14 @@ class plots(object):
     #
     #
 
-
     @classmethod
     def findlarge(self):
         '''Fig. FIX_PAPER_FIG of FIX_PAPER_REF'''
 
         dim=int(1e5)
 
-        if not os.path.isfile("findlarge.pkl"):
+        filename='findlarge.pkl'
+        if not os.path.isfile(filename):
 
             def _kickdistr(i):
                 np.random.seed()
@@ -1199,10 +1216,12 @@ class plots(object):
                 sk= surrkick(q=q,chi1=chi1,chi2=chi2)
                 return [q,chi1,chi2,sk.kick]
 
-            data= list(tqdm(self.map(_kickdistr, range(dim)),total=dim))
+            print("Running in parallel on", multiprocessing.cpu_count(),"cores. Storing data:", filename)
+            parmap = pathos.multiprocessing.ProcessingPool(multiprocessing.cpu_count()).imap
+            data= list(tqdm(parmap(_kickdistr, range(dim)),total=dim))
 
-            with open("findlarge.pkl", 'wb') as f: pickle.dump(zip(*data), f)
-        with open("findlarge.pkl", 'rb') as f: q,chi1,chi2,kicks = pickle.load(f)
+            with open(filename, 'wb') as f: pickle.dump(zip(*data), f)
+        with open(filename, 'rb') as f: Erad,kicks,Jrad,fk = pickle.load(f)
 
         mk=max(kicks)
         maxind= kicks==mk
@@ -1229,7 +1248,9 @@ class plots(object):
         ax.axhline(0,c='black',alpha=0.3,ls='dotted')
         ax.axhline(1,c='black',alpha=0.3,ls='dotted')
 
-        if not os.path.isfile("normprofiles.pkl"):
+        filename='normprofiles.pkl'
+        if not os.path.isfile(filename):
+            print("Storing data:", filename)
 
             data=[]
             for i in tqdm(range(200)):
@@ -1252,8 +1273,8 @@ class plots(object):
 
                 data.append([sk.kick, project(sk.voft/sk.kick,sk.kickdir)])
 
-            with open("normprofiles.pkl", 'wb') as f: pickle.dump(data, f)
-        with open("normprofiles.pkl", 'rb') as f: data = pickle.load(f)
+            with open(filename, 'wb') as f: pickle.dump(data, f)
+        with open(filename, 'rb') as f: data = pickle.load(f)
 
         times=surrkick().times
         for d in tqdm(data):
@@ -1264,7 +1285,7 @@ class plots(object):
         ax.plot(times,scipy.stats.norm.cdf(times, loc=10, scale=8),dashes=[10,4],c='C0',lw=2)
         ax.plot(times,scipy.stats.norm.cdf(times, loc=10, scale=8),c='C0',alpha=0.5,lw=1)
         ax.set_xlim(-50,50)
-        ax.set_ylim(-2.5,2.5)
+        ax.set_ylim(-1.7,3.2)
         ax.xaxis.set_major_locator(MultipleLocator(20))
         ax.xaxis.set_minor_locator(AutoMinorLocator())
         ax.yaxis.set_minor_locator(AutoMinorLocator())
@@ -1273,7 +1294,6 @@ class plots(object):
         ax.set_ylabel("$\mathbf{v}(t)\cdot\mathbf{\hat n}\, /\, \mathbf{v_k}\cdot\mathbf{\hat n}$")
 
         return fig
-
 
     @classmethod
     @plottingstuff
@@ -1294,7 +1314,8 @@ class plots(object):
 
         dim=int(1e6)
 
-        if not os.path.isfile("explore.pkl"):
+        filename='explore.pkl'
+        if not os.path.isfile(filename):
 
             def _explore(i):
 
@@ -1320,10 +1341,12 @@ class plots(object):
 
                 return [sk.Erad,sk.kick,sk.Jrad,fk]
 
-            data= list(tqdm(self.map(_explore, range(dim)),total=dim))
+            print("Running in parallel on", multiprocessing.cpu_count(),"cores. Storing data:", filename)
+            parmap = pathos.multiprocessing.ProcessingPool(multiprocessing.cpu_count()).imap
+            data= list(tqdm(parmap(_explore, range(dim)),total=dim))
 
-            with open("explore.pkl", 'wb') as f: pickle.dump(zip(*data), f)
-        with open("explore.pkl", 'rb') as f: Erad,kicks,Jrad,fk = pickle.load(f)
+            with open(filename, 'wb') as f: pickle.dump(zip(*data), f)
+        with open(filename, 'rb') as f: Erad,kicks,Jrad,fk = pickle.load(f)
         kicks=np.array(kicks)
         fk=np.array(fk)
 
@@ -1362,8 +1385,8 @@ class plots(object):
         from mpl_toolkits.axes_grid1.inset_locator import mark_inset
         mark_inset(axv, axi, loc1=4, loc2=3, fc="none", ec="0.5",alpha=0.8)
 
-        print("Largest kick, surrogate:", convert.kms(max(kicks)))
-        print("Largest kick, fitting formula", convert.kms(max(fk)))
+        print("Largest kicks.\n\tSurrogate:", convert.kms(max(kicks)), "\n\tFitting formula", convert.kms(max(fk)))
+        print("P(vk>2000 km/s).\n\tSurrogate:", len(kicks[kicks>convert.cisone(2000)])/dim, "\n\tFitting formula", len(fk[fk>convert.cisone(2000)])/dim)
 
         return fig
 
@@ -1371,9 +1394,13 @@ class plots(object):
     def timing(self):
         '''Fig. FIX_PAPER_FIG of FIX_PAPER_REF'''
 
-        timessur=[]
+        dim=1000
+        surrogate().sur() # Load the surrogate once for all
 
-        for i in range(1000):
+        timessur=[]
+        timeskick=[]
+        timesall=[]
+        for i in tqdm(range(dim)):
 
             q=np.random.uniform(0.5,1)
             phi = np.random.uniform(0,2*np.pi)
@@ -1385,25 +1412,40 @@ class plots(object):
             r = 0.8*(np.random.uniform(0,1))**(1./3.)
             chi2= [ r*np.sin(theta)*np.cos(phi), r*np.sin(theta)*np.sin(phi), r*np.cos(theta) ]
 
-            #t0=time.time()
-            #sk= surrkick(q=q,chi1=chi1,chi2=chi2).hsample
-            #tsur=time.time()-t0
-            #print(tsur)
+
+            sk= surrkick(q=q,chi1=chi1,chi2=chi2)
+            t0=time.time()
+            sk.hsample
+            tsur=time.time()-t0
 
 
             t0=time.time()
-            sk= surrkick(q=q,chi1=chi1,chi2=chi2).kick
-            tsur=time.time()-t0
-            print(tsur)
+            sk.kick
+            tkick=time.time()-t0
+
+            t0=time.time()
+            sk=surrkick(q=q,chi1=chi1,chi2=chi2).kick
+            tall=time.time()-t0
 
 
             timessur.append(tsur)
+            timeskick.append(tkick)
+            timesall.append(tall)
 
-        print("Mean:", np.mean(timessur))
-        print("Median:", np.median(timessur))
+
+        print("Time, surrogate waveform:", np.mean(timessur),'s')
+        print("Time, kick:", np.mean(timeskick),'s')
+        print("Time, both:", np.mean(timesall),'s')
+
+
+
 
 ########################################
 if __name__ == "__main__":
+    pass
 
+    #plots.nospinprofiles()
+    plots.findlarge()
+    #plots.timing()
 
-    plots.timing()
+    #plots.normprofiles()
