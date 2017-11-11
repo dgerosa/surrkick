@@ -621,7 +621,8 @@ class plots(object):
             rc('text',usetex=True)
             import matplotlib
             matplotlib.rcParams['text.latex.preamble']=[r"\usepackage{amsmath}"]
-            rc('figure',max_open_warning=1000)
+            matplotlib.rcParams['figure.max_open_warning']=int(1e4)
+            rc('figure',max_open_warning=100000)
             rc('xtick',top=True)
             rc('ytick',right=True)
             import matplotlib.pyplot as plt
@@ -648,23 +649,17 @@ class plots(object):
                         f.savefig(framename, bbox_inches='tight',format='png',dpi = 150)
                     f.clf()
 
-                fps = 15 #The movie is faster if fps is large
-                mpg_file=True
-                youtube=True
+                rate = 100 #The movie is faster if fps is large
                 remove_frame=False
-                if mpg_file: # Small mpg file
-                    command="mencoder mf://"+function.__name__+"_"+str(j)+"*.png -mf type=png:fps="+str(int(fps))+" -ovc copy -oac copy -o "+function.__name__+"_"+str(j)+".mpg"
-                    os.system(command)
 
-                if youtube: # Raw video format. To be uploaded on YouTube
-                    command="mencoder mf://"+function.__name__+"_"+str(j)+"*.png -mf type=png:fps="+str(int(fps))+" -ovc x264 -lavcopts vcodec=libx264 -o "+function.__name__+"_"+str(j)+".h264"
-                    os.system(command)
+                command ='ffmpeg -r '+str(rate)+' -i '+function.__name__+'_'+str(j)+'_'+'%05d.png -vcodec libx264 -y -an '+function.__name__+'_'+str(j)+'.mp4 -vf "scale=trunc(iw/2)*2:trunc(ih/2)*2"'
+                print(command)
 
-                if remove_frame:
+                os.system(command)
+
+                if False:
                     command="rm -f "+function.__name__+"_"+str(j)+"*.png temp"
                     os.system(command)
-
-
 
 
         return wrapper
@@ -924,6 +919,10 @@ class plots(object):
 
         allfig=[]
 
+        #tnew=np.linspace(-4500,100,10)
+        tnew=np.linspace(-4500,100,4601)
+
+        tnew=np.append(tnew,np.ones(10)*tnew[-1])
         # Left panel
         if True:
 
@@ -932,20 +931,25 @@ class plots(object):
             chi2=[0,0,0]
 
             sk = surrkick(q=q , chi1=chi1,chi2=chi2)
+            x0,y0,z0=sk.xoft[sk.times==min(abs(sk.times))][0]
+            x,y,z=np.transpose(sk.xoft)
+            xnew=spline(sk.times,x)(tnew)
+            ynew=spline(sk.times,y)(tnew)
+            znew=spline(sk.times,z)(tnew)
 
-            figs=[]
-            for tilltime in tqdm(sk.times[:10]):
 
+            def _recoil(tilltime):
                 fig = plt.figure(figsize=(6,6))
                 ax=fig.add_axes([0,0,0.7,0.7], projection='3d')
+                fig.text(0.25,0.67,'$t='+str(int(tilltime))+'M$',transform=fig.transFigure, horizontalalignment='left',verticalalignment='bottom')
 
-
-                x0,y0,z0=sk.xoft[sk.times==min(abs(sk.times))][0]
-
-                x,y,z=np.transpose(sk.xoft[sk.times<tilltime])
+                x=xnew[tnew<tilltime]
+                y=ynew[tnew<tilltime]
+                z=znew[tnew<tilltime]
 
                 ax.plot(x-x0,y-y0,z-z0)
-                ax.scatter(0,0,0,marker='.',s=60,alpha=0.5)
+                if tilltime>0:
+                    ax.scatter(0,0,0,marker='.',s=60,alpha=0.5)
                 x,y,z=np.transpose(sk.xoft)
                 vx,vy,vz=np.transpose(sk.voft)
 
@@ -966,58 +970,76 @@ class plots(object):
                 ax.yaxis.set_minor_locator(AutoMinorLocator())
                 ax.zaxis.set_minor_locator(AutoMinorLocator())
 
-                figs.append(fig)
+                return fig
+
+            #print("Running in parallel on", multiprocessing.cpu_count(),"cores.")
+            #parmap = pathos.multiprocessing.ProcessingPool(multiprocessing.cpu_count()).imap
+            #figs= list(tqdm(parmap(_recoil, tnew),total=len(tnew)))
+            figs=[_recoil(t) for t in tqdm(tnew)]
 
             allfig.append(figs)
 
-        # Middle panel
-        if False:
 
-            fig = plt.figure(figsize=(6,6))
-            ax=fig.add_axes([0,0,0.7,0.7], projection='3d')
+        # Middle panel
+        if True:
 
             q=0.5
             chi1=[0.8,0,0]
             chi2=[-0.8,0,0]
 
-            sk = surrkick(q=q , chi1=chi1, chi2=chi2)
+            sk = surrkick(q=q , chi1=chi1,chi2=chi2)
             x0,y0,z0=sk.xoft[sk.times==min(abs(sk.times))][0]
-            x,y,z=np.transpose(sk.xoft[np.logical_and(sk.times>-3500,sk.times<16)])
-            ax.plot(x-x0,y-y0,z-z0)
-            ax.scatter(0,0,0,marker='.',s=40,alpha=0.5)
             x,y,z=np.transpose(sk.xoft)
-            vx,vy,vz=np.transpose(sk.voft)
+            xnew=spline(sk.times,x)(tnew)
+            ynew=spline(sk.times,y)(tnew)
+            znew=spline(sk.times,z)(tnew)
 
-            for t in [-20,-3,3,3,10,14]:
-                i = np.abs(sk.times - t).argmin()
-                v=np.linalg.norm([vx[i],vy[i],vz[i]])
-                arrowsize=2e-3
-                ax.quiver(x[i]-x0,y[i]-y0,z[i]-z0,vx[i]*arrowsize/v,vy[i]*arrowsize/v,vz[i]*arrowsize/v,length=0.00001,arrow_length_ratio=30000,alpha=0.5)
 
-            ax.set_xlim(-0.005,0.005)
-            ax.set_ylim(-0.005,0.005)
-            ax.set_zlim(-0.005,0.005)
-            ax.set_xticklabels(ax.get_xticks(), fontsize=9)
-            ax.set_yticklabels(ax.get_yticks(), fontsize=9)
-            ax.set_zticklabels(ax.get_zticks(), fontsize=9)
-            fig.text(0.1,0.4,'$q='+str(q)+'$\n$\\boldsymbol{\\chi_1}=[0.8,0,0]$\n$\\boldsymbol{\\chi_2}=[-0.8,0,0]$\n$v_k='+str(int(convert.kms(sk.kick)))+'{\\rm \;km/s}$',transform=fig.transFigure)
-            ax.set_xlabel("$x\;\;[M]$",fontsize=13)
-            ax.set_ylabel("$y\;\;[M]$",fontsize=13)
-            ax.set_zlabel("$z\;\;[M]$",fontsize=13)
-            ax.xaxis.labelpad=6
-            ax.yaxis.labelpad=8
-            ax.zaxis.labelpad=4
-            ax.xaxis.set_minor_locator(AutoMinorLocator())
-            ax.yaxis.set_minor_locator(AutoMinorLocator())
-            ax.zaxis.set_minor_locator(AutoMinorLocator())
+            def _recoil(tilltime):
+                fig = plt.figure(figsize=(6,6))
+                ax=fig.add_axes([0,0,0.7,0.7], projection='3d')
+                fig.text(0.25,0.67,'$t='+str(int(tilltime))+'M$',transform=fig.transFigure, horizontalalignment='left',verticalalignment='bottom')
 
-            allfig.append(fig)
+                x=xnew[tnew<tilltime]
+                y=ynew[tnew<tilltime]
+                z=znew[tnew<tilltime]
+
+                ax.plot(x-x0,y-y0,z-z0)
+                if tilltime>0:
+                    ax.scatter(0,0,0,marker='.',s=60,alpha=0.5)
+                x,y,z=np.transpose(sk.xoft)
+                vx,vy,vz=np.transpose(sk.voft)
+
+                ax.set_xlim(-0.005,0.005)
+                ax.set_ylim(-0.005,0.005)
+                ax.set_zlim(-0.005,0.005)
+                ax.set_xticklabels(ax.get_xticks(), fontsize=9)
+                ax.set_yticklabels(ax.get_yticks(), fontsize=9)
+                ax.set_zticklabels(ax.get_zticks(), fontsize=9)
+                fig.text(0.1,0.4,'$q='+str(q)+'$\n$\\boldsymbol{\\chi_1}=[0.8,0,0]$\n$\\boldsymbol{\\chi_2}=[-0.8,0,0]$\n$v_k='+str(int(convert.kms(sk.kick)))+'{\\rm \;km/s}$',transform=fig.transFigure)
+                ax.set_xlabel("$x\;\;[M]$",fontsize=13)
+                ax.set_ylabel("$y\;\;[M]$",fontsize=13)
+                ax.set_zlabel("$z\;\;[M]$",fontsize=13)
+                ax.xaxis.labelpad=6
+                ax.yaxis.labelpad=8
+                ax.zaxis.labelpad=4
+                ax.xaxis.set_minor_locator(AutoMinorLocator())
+                ax.yaxis.set_minor_locator(AutoMinorLocator())
+                ax.zaxis.set_minor_locator(AutoMinorLocator())
+
+                return fig
+
+            #print("Running in parallel on", multiprocessing.cpu_count(),"cores.")
+            #parmap = pathos.multiprocessing.ProcessingPool(multiprocessing.cpu_count()).imap
+            #figs= list(tqdm(parmap(_recoil, tnew),total=len(tnew)))
+            figs=[_recoil(t) for t in tqdm(tnew)]
+
+            allfig.append(figs)
+
+
 
         # Right panel
-        if False:
-
-            fig = plt.figure(figsize=(6,6))
-            ax=fig.add_axes([0,0,0.7,0.7], projection='3d')
+        if True:
 
             q=1
             chi1=[0.81616392, 0.01773234, 0.57754829]
@@ -1025,39 +1047,59 @@ class plots(object):
             chi2=[-0.87810809, 0.06485156, 0.47404689]
             chi2=np.array(chi2)*0.8/np.linalg.norm(chi2)
 
-            sk = surrkick(q=q , chi1=chi1, chi2=chi2)
+            sk = surrkick(q=q , chi1=chi1,chi2=chi2)
             x0,y0,z0=sk.xoft[sk.times==min(abs(sk.times))][0]
-            x,y,z=np.transpose(sk.xoft[np.logical_and(sk.times>-4500,sk.times<7.2)])
-            ax.plot(x-x0,y-y0,z-z0)
-            ax.scatter(0,0,0,marker='.',s=40,alpha=0.5)
             x,y,z=np.transpose(sk.xoft)
-            vx,vy,vz=np.transpose(sk.voft)
+            xnew=spline(sk.times,x)(tnew)
+            ynew=spline(sk.times,y)(tnew)
+            znew=spline(sk.times,z)(tnew)
 
-            for t in [-9,3,4]:
-                i = np.abs(sk.times - t).argmin()
-                v=np.linalg.norm([vx[i],vy[i],vz[i]])
-                arrowsize=2e-3
-                ax.quiver(x[i]-x0,y[i]-y0,z[i]-z0,vx[i]*arrowsize/v,vy[i]*arrowsize/v,vz[i]*arrowsize/v,length=0.00001,arrow_length_ratio=30000,alpha=0.5)
 
-            ax.set_xlim(-0.006,0.005)
-            ax.set_ylim(-0.006,0.005)
-            ax.set_zlim(0,0.011)
-            ax.set_xticklabels(ax.get_xticks(), fontsize=9)
-            ax.set_yticklabels(ax.get_yticks(), fontsize=9)
-            ax.set_zticklabels(ax.get_zticks(), fontsize=9)
-            fig.text(0.09,0.45,'$q='+str(q)+'$\n$\\boldsymbol{\\chi_1}=['+
-                str(round(chi1[0],2))+','+str(round(chi1[1],2))+','+str(round(chi1[2],2))+
-                ']$\n$\\boldsymbol{\\chi_2}=['+
-                str(round(chi2[0],2))+','+str(round(chi2[1],2))+','+str(round(chi2[2],2))+
-                ']$\n$v_k='+str(int(convert.kms(sk.kick)))+'{\\rm \;km/s}$',transform=fig.transFigure)
-            ax.set_xlabel("$x\;\;[M]$",fontsize=13)
-            ax.set_ylabel("$y\;\;[M]$",fontsize=13)
-            ax.set_zlabel("$z\;\;[M]$",fontsize=13)
-            ax.xaxis.labelpad=6
-            ax.yaxis.labelpad=8
-            ax.zaxis.labelpad=4
+            def _recoil(tilltime):
+                fig = plt.figure(figsize=(6,6))
+                ax=fig.add_axes([0,0,0.7,0.7], projection='3d')
+                fig.text(0.25,0.67,'$t='+str(int(tilltime))+'M$',transform=fig.transFigure, horizontalalignment='left',verticalalignment='bottom')
 
-            allfig.append(fig)
+                x=xnew[tnew<tilltime]
+                y=ynew[tnew<tilltime]
+                z=znew[tnew<tilltime]
+
+                ax.plot(x-x0,y-y0,z-z0)
+                if tilltime>0:
+                    ax.scatter(0,0,0,marker='.',s=60,alpha=0.5)
+                x,y,z=np.transpose(sk.xoft)
+                vx,vy,vz=np.transpose(sk.voft)
+
+                ax.set_xlim(-0.006,0.005)
+                ax.set_ylim(-0.006,0.005)
+                ax.set_zlim(0,0.011)
+                ax.set_xticklabels(ax.get_xticks(), fontsize=9)
+                ax.set_yticklabels(ax.get_yticks(), fontsize=9)
+                ax.set_zticklabels(ax.get_zticks(), fontsize=9)
+                fig.text(0.09,0.45,'$q='+str(q)+'$\n$\\boldsymbol{\\chi_1}=['+
+                    str(round(chi1[0],2))+','+str(round(chi1[1],2))+','+str(round(chi1[2],2))+
+                    ']$\n$\\boldsymbol{\\chi_2}=['+
+                    str(round(chi2[0],2))+','+str(round(chi2[1],2))+','+str(round(chi2[2],2))+
+                    ']$\n$v_k='+str(int(convert.kms(sk.kick)))+'{\\rm \;km/s}$',transform=fig.transFigure)
+                ax.set_xlabel("$x\;\;[M]$",fontsize=13)
+                ax.set_ylabel("$y\;\;[M]$",fontsize=13)
+                ax.set_zlabel("$z\;\;[M]$",fontsize=13)
+                ax.xaxis.labelpad=6
+                ax.yaxis.labelpad=8
+                ax.zaxis.labelpad=4
+                ax.xaxis.set_minor_locator(AutoMinorLocator())
+                ax.yaxis.set_minor_locator(AutoMinorLocator())
+                ax.zaxis.set_minor_locator(AutoMinorLocator())
+
+                return fig
+
+            #print("Running in parallel on", multiprocessing.cpu_count(),"cores.")
+            #parmap = pathos.multiprocessing.ProcessingPool(multiprocessing.cpu_count()).imap
+            #figs= list(tqdm(parmap(_recoil, tnew),total=len(tnew)))
+            figs=[_recoil(t) for t in tqdm(tnew)]
+
+            allfig.append(figs)
+
 
         return allfig
 
@@ -1667,10 +1709,13 @@ class plots(object):
 ########################################
 if __name__ == "__main__":
     pass
+    #t=surrkick().times
+    #print(t[1:]-t[:-1])
+    plots.recoil()
 
     #plots.nospinprofiles()
     #plots.findlarge()
     #plots.timing()
-    plots.recoil()
+    #plots.recoil()
     #plots.explore()
     #plots.normprofiles()
