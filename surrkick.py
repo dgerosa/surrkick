@@ -358,6 +358,16 @@ class surrkick(object):
             # The integral of a spline is called antiderivative (mmmh...)
             origin=[0,0,0]
             self._Poft = np.transpose([spline(self.times,v).antiderivative()(self.times)-o  for v,o in zip(np.transpose(self.dPdt),origin)])
+
+
+            # Eliminate unphysical drift due to the starting point of the integration. Integrate for tbuffer and substract the mean.
+            tbuffer=-1000
+            tend=self.times[0]-tbuffer
+            P0 = np.array([spline(self.times[self.times<tend],v[self.times<tend]).antiderivative()(tend)/tbuffer  for v in np.transpose(self.Poft)])
+
+            self._Poft = np.transpose([v+po for v,po in zip(np.transpose(self._Poft),P0)])
+
+
         return self._Poft
 
     @property
@@ -456,8 +466,15 @@ class surrkick(object):
 
         if self._xoft is None:
             # The integral of a spline is called antiderivative (mmmh...)
+
+
+            #v0= np.array([spline(self.times[self.times<-3500],v[self.times<-3500]).antiderivative()(-3500)/(-1000)  for v in np.transpose(self.voft)])
+
+
+            #print("v0",v0)
+
             origin=[0,0,0]
-            self._xoft = np.transpose([spline(self.times,v).antiderivative()(self.times)-o  for v,o in zip(np.transpose(self.voft),origin)])
+            self._xoft = np.transpose([spline(self.times,v).antiderivative()(self.times)-vo*self.times  for v,vo in zip(np.transpose(self.voft),origin)])
         return self._xoft
 
 
@@ -631,17 +648,22 @@ class plots(object):
             from matplotlib.ticker import AutoMinorLocator,MultipleLocator
 
             figs = function(self)
-
+            #figs=[[1],[2],[3]]
             try:
                 len(figs[0])
             except:
                 figs=[figs]
 
 
+
+
             for j,fig in enumerate(tqdm(figs)):
+                print(j)
+                #for i,f in enumerate(tqdm(fig)):
 
-                for i,f in enumerate(tqdm(fig)):
 
+                def _savethisfig(data):
+                    i,f=data
                     # Filter our annoying "elementwise comparison failed" warning (something related to the matplotlib backend and future versions)
                     with warnings.catch_warnings():
                         warnings.simplefilter(action='ignore', category=FutureWarning)
@@ -649,13 +671,17 @@ class plots(object):
                         f.savefig(framename, bbox_inches='tight',format='png',dpi = 150)
                     f.clf()
 
-                rate = 100 #The movie is faster if fps is large
-                remove_frame=False
 
+                print("Running in parallel on", multiprocessing.cpu_count(),"cores.")
+                parmap = pathos.multiprocessing.ProcessingPool(multiprocessing.cpu_count()).imap
+                figs= list(tqdm(parmap(_savethisfig, zip(range(len(figs)),figs)),total=len(figs)))
+
+
+
+                rate = 100 #The movie is faster if this number is large
                 command ='ffmpeg -r '+str(rate)+' -i '+function.__name__+'_'+str(j)+'_'+'%05d.png -vcodec libx264 -y -an '+function.__name__+'_'+str(j)+'.mp4 -vf "scale=trunc(iw/2)*2:trunc(ih/2)*2"'
                 print(command)
-
-                os.system(command)
+                #os.system(command)
 
                 if False:
                     command="rm -f "+function.__name__+"_"+str(j)+"*.png temp"
@@ -883,7 +909,7 @@ class plots(object):
             x,y,z=np.transpose(sk.xoft)
             vx,vy,vz=np.transpose(sk.voft)
 
-            for t in [-9,3,4]:
+            for t in [-9,3,4.5]:
                 i = np.abs(sk.times - t).argmin()
                 v=np.linalg.norm([vx[i],vy[i],vz[i]])
                 arrowsize=2e-3
@@ -922,20 +948,30 @@ class plots(object):
         #tnew=np.linspace(-4500,100,10)
         tnew=np.linspace(-4500,100,4601)
 
-        tnew=np.append(tnew,np.ones(10)*tnew[-1])
+        tnew=np.append(tnew,np.ones(100)*tnew[-1])
         # Left panel
         if True:
 
             q=0.5
             chi1=[0,0,0]
             chi2=[0,0,0]
-
             sk = surrkick(q=q , chi1=chi1,chi2=chi2)
             x0,y0,z0=sk.xoft[sk.times==min(abs(sk.times))][0]
+
+
             x,y,z=np.transpose(sk.xoft)
             xnew=spline(sk.times,x)(tnew)
             ynew=spline(sk.times,y)(tnew)
             znew=spline(sk.times,z)(tnew)
+
+            tmax=100 # Fix annyoing bug in matplotlib.axes3d (comes from a 2d backend)
+            temp=xnew[tnew<100]
+            xnew=np.append(temp,temp[-1]*np.ones(len(xnew[tnew>=100])))
+            temp=xnew[tnew<100]
+            ynew=np.append(temp,temp[-1]*np.ones(len(ynew[tnew>=100])))
+            temp=xnew[tnew<100]
+            znew=np.append(temp,temp[-1]*np.ones(len(znew[tnew>=100])))
+
 
 
             def _recoil(tilltime):
@@ -981,7 +1017,7 @@ class plots(object):
 
 
         # Middle panel
-        if True:
+        if False:
 
             q=0.5
             chi1=[0.8,0,0]
@@ -993,6 +1029,15 @@ class plots(object):
             xnew=spline(sk.times,x)(tnew)
             ynew=spline(sk.times,y)(tnew)
             znew=spline(sk.times,z)(tnew)
+
+            tmax=50 # Fix annyoing bug in matplotlib.axes3d (comes from a 2d backend)
+            temp=xnew[tnew<100]
+            xnew=np.append(temp,temp[-1]*np.ones(len(xnew[tnew>=100])))
+            temp=xnew[tnew<100]
+            ynew=np.append(temp,temp[-1]*np.ones(len(ynew[tnew>=100])))
+            temp=xnew[tnew<100]
+            znew=np.append(temp,temp[-1]*np.ones(len(znew[tnew>=100])))
+
 
 
             def _recoil(tilltime):
@@ -1010,9 +1055,9 @@ class plots(object):
                 x,y,z=np.transpose(sk.xoft)
                 vx,vy,vz=np.transpose(sk.voft)
 
-                ax.set_xlim(-0.005,0.005)
-                ax.set_ylim(-0.005,0.005)
-                ax.set_zlim(-0.005,0.005)
+                #ax.set_xlim(-0.005,0.005)
+                #ax.set_ylim(-0.005,0.005)
+                #ax.set_zlim(-0.005,0.005)
                 ax.set_xticklabels(ax.get_xticks(), fontsize=9)
                 ax.set_yticklabels(ax.get_yticks(), fontsize=9)
                 ax.set_zticklabels(ax.get_zticks(), fontsize=9)
@@ -1039,7 +1084,7 @@ class plots(object):
 
 
         # Right panel
-        if True:
+        if False:
 
             q=1
             chi1=[0.81616392, 0.01773234, 0.57754829]
@@ -1053,6 +1098,15 @@ class plots(object):
             xnew=spline(sk.times,x)(tnew)
             ynew=spline(sk.times,y)(tnew)
             znew=spline(sk.times,z)(tnew)
+
+            tmax=30 # Fix annyoing bug in matplotlib.axes3d (comes from a 2d backend)
+            temp=xnew[tnew<100]
+            xnew=np.append(temp,temp[-1]*np.ones(len(xnew[tnew>=100])))
+            temp=xnew[tnew<100]
+            ynew=np.append(temp,temp[-1]*np.ones(len(ynew[tnew>=100])))
+            temp=xnew[tnew<100]
+            znew=np.append(temp,temp[-1]*np.ones(len(znew[tnew>=100])))
+
 
 
             def _recoil(tilltime):
@@ -1700,6 +1754,53 @@ class plots(object):
         print("Time, kick:", np.mean(timeskick),'s')
         print("Time, both:", np.mean(timesall),'s')
 
+    @classmethod
+    @plottingstuff
+    def check(self):
+        L=0.7
+        H=0.3
+        S=0.05
+        Z=0.35
+
+        fig = plt.figure(figsize=(6,6))
+        ax = [fig.add_axes([0,-i*(S+H),L,H]) for i in [0,1,2,3]]
+
+
+        #tnew=np.linspace(-4500,100,10)
+        tnew=np.linspace(-4500,100,4601)
+
+        tnew=np.append(tnew,np.ones(10)*tnew[-1])
+
+        q=0.5
+        chi1=[0.8,0,0]
+        chi2=[-0.8,0,0]
+
+        sk = surrkick(q=q , chi1=chi1,chi2=chi2)
+        x0,y0,z0=sk.xoft[sk.times==min(abs(sk.times))][0]
+        x,y,z=np.transpose(sk.xoft)
+        xnew=spline(sk.times,x)(tnew)
+        ynew=spline(sk.times,y)(tnew)
+        znew=spline(sk.times,z)(tnew)
+
+        # ax[0].plot(sk.times,x)
+        # ax[0].plot(tnew,xnew)
+        #
+        # ax[1].plot(sk.times,y)
+        # ax[1].plot(tnew,ynew)
+        # ax[2].plot(sk.times,z)
+        # ax[2].plot(tnew,znew)
+
+        ax[0].plot(sk.times,sk.voft[:,0])
+        ax[1].plot(sk.times,sk.voft[:,1])
+        ax[2].plot(sk.times,sk.voft[:,2])
+
+
+
+        for axx in ax:
+            axx.set_xlim(-10,70)
+
+        return fig
+
 
 
 
@@ -1709,13 +1810,16 @@ class plots(object):
 ########################################
 if __name__ == "__main__":
     pass
+    plots.centerofmass()
+
     #t=surrkick().times
     #print(t[1:]-t[:-1])
     plots.recoil()
-
+    #plots.check()
     #plots.nospinprofiles()
     #plots.findlarge()
     #plots.timing()
     #plots.recoil()
     #plots.explore()
     #plots.normprofiles()
+    #plots.centerofmass()
