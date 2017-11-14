@@ -654,38 +654,28 @@ class plots(object):
             except:
                 figs=[figs]
 
-
-
-
             for j,fig in enumerate(tqdm(figs)):
                 print(j)
-                #for i,f in enumerate(tqdm(fig)):
+
+                if fig != [None]:
+
+                    for i,f in enumerate(tqdm(fig)):
+
+                        with warnings.catch_warnings():
+                            warnings.simplefilter(action='ignore', category=FutureWarning)
+                            framename = function.__name__+"_"+str(j)+"_"+"%05d.png"%i
+                            f.savefig(framename, bbox_inches='tight',format='png',dpi = 300)
+                            f.clf()
 
 
-                def _savethisfig(data):
-                    i,f=data
-                    # Filter our annoying "elementwise comparison failed" warning (something related to the matplotlib backend and future versions)
-                    with warnings.catch_warnings():
-                        warnings.simplefilter(action='ignore', category=FutureWarning)
-                        framename = function.__name__+"_"+str(j)+"_"+"%05d.png"%i
-                        f.savefig(framename, bbox_inches='tight',format='png',dpi = 150)
-                    f.clf()
+                    rate = 100 #The movie is faster if this number is large
+                    command ='ffmpeg -r '+str(rate)+' -i '+function.__name__+'_'+str(j)+'_'+'%05d.png -vcodec libx264 -crf 18 -y -an '+function.__name__+'_'+str(j)+'.mp4 -vf "scale=trunc(iw/2)*2:trunc(ih/2)*2"'
+                    print(command)
+                    #os.system(command)
 
-
-                print("Running in parallel on", multiprocessing.cpu_count(),"cores.")
-                parmap = pathos.multiprocessing.ProcessingPool(multiprocessing.cpu_count()).imap
-                figs= list(tqdm(parmap(_savethisfig, zip(range(len(figs)),figs)),total=len(figs)))
-
-
-
-                rate = 100 #The movie is faster if this number is large
-                command ='ffmpeg -r '+str(rate)+' -i '+function.__name__+'_'+str(j)+'_'+'%05d.png -vcodec libx264 -y -an '+function.__name__+'_'+str(j)+'.mp4 -vf "scale=trunc(iw/2)*2:trunc(ih/2)*2"'
-                print(command)
-                #os.system(command)
-
-                if False:
-                    command="rm -f "+function.__name__+"_"+str(j)+"*.png temp"
-                    os.system(command)
+                    if False:
+                        command="rm -f "+function.__name__+"_"+str(j)+"*.png temp"
+                        os.system(command)
 
 
         return wrapper
@@ -942,6 +932,11 @@ class plots(object):
     @animate
     def recoil(self):
         '''Fig. FIX_PAPER_FIG of FIX_PAPER_REF.'''
+        #leftpanel,middlepanel,rightpanel=True,False,False
+        #leftpanel,middlepanel,rightpanel=False,True,False
+        leftpanel,middlepanel,rightpanel=False,False,True
+
+
 
         allfig=[]
 
@@ -949,8 +944,11 @@ class plots(object):
         tnew=np.linspace(-4500,100,4601)
 
         tnew=np.append(tnew,np.ones(100)*tnew[-1])
+
+
+
         # Left panel
-        if True:
+        if leftpanel:
 
             q=0.5
             chi1=[0,0,0]
@@ -1015,9 +1013,12 @@ class plots(object):
 
             allfig.append(figs)
 
+        else:
+            allfig.append([None])
+
 
         # Middle panel
-        if False:
+        if middlepanel:
 
             q=0.5
             chi1=[0.8,0,0]
@@ -1055,9 +1056,9 @@ class plots(object):
                 x,y,z=np.transpose(sk.xoft)
                 vx,vy,vz=np.transpose(sk.voft)
 
-                #ax.set_xlim(-0.005,0.005)
-                #ax.set_ylim(-0.005,0.005)
-                #ax.set_zlim(-0.005,0.005)
+                ax.set_xlim(-0.005,0.005)
+                ax.set_ylim(-0.005,0.005)
+                ax.set_zlim(-0.005,0.005)
                 ax.set_xticklabels(ax.get_xticks(), fontsize=9)
                 ax.set_yticklabels(ax.get_yticks(), fontsize=9)
                 ax.set_zticklabels(ax.get_zticks(), fontsize=9)
@@ -1082,9 +1083,12 @@ class plots(object):
             allfig.append(figs)
 
 
+        else:
+            allfig.append([None])
+
 
         # Right panel
-        if False:
+        if rightpanel:
 
             q=1
             chi1=[0.81616392, 0.01773234, 0.57754829]
@@ -1154,15 +1158,12 @@ class plots(object):
 
             allfig.append(figs)
 
+        else:
+            allfig.append([None])
+
+
 
         return allfig
-
-
-
-
-
-
-
 
     @classmethod
     @plottingstuff
@@ -1343,12 +1344,20 @@ class plots(object):
         axs[0].plot(tref_vals,1/0.001*np.array(kick_vals))
         axs[0].scatter(-125,1/0.001*surrkick(q=1 , chi1=[chimag,0,0],chi2=[-chimag,0,0],t_ref=-125).kick,marker='o',edgecolor='C1',facecolor='none',s=100,linewidth='2')
 
+        axs[0].scatter(-100,1/0.001*surrkick(q=1 , chi1=[chimag,0,0],chi2=[-chimag,0,0],t_ref=-100).kick,marker='x',edgecolor='gray',facecolor='gray',s=100,linewidth='2')
+
+
         alpha_vals=np.linspace(-np.pi,np.pi,dim)
         kick_vals=[]
         for alpha in tqdm(alpha_vals):
             sk = surrkick(q=1 , chi1=[chimag*np.cos(alpha),chimag*np.sin(alpha),0],chi2=[-chimag*np.cos(alpha),-chimag*np.sin(alpha),0])
             kick_vals.append(sk.kick)
         axs[1].plot(alpha_vals,1/0.001*np.array(kick_vals),c='C3')
+
+        axs[1].scatter(0,1/0.001*surrkick(q=1 , chi1=[chimag,0,0],chi2=[-chimag,0,0],t_ref=-100).kick,marker='x',edgecolor='gray',facecolor='gray',s=100,linewidth='2')
+
+
+
 
         axs[0].text(0.05,0.5,'$q=1$\n$\chi_1=\chi_2=0.8$\n$\\alpha=0$',transform=axs[0].transAxes,linespacing=1.4)
         axs[1].text(0.05,0.5,'$q=1$\n$\chi_1=\chi_2=0.8$\n$t_{\\rm ref}=-100M$',transform=axs[1].transAxes,linespacing=1.4)
@@ -1602,7 +1611,7 @@ class plots(object):
         ax.plot(times,scipy.stats.norm.cdf(times, loc=10, scale=8),dashes=[10,4],c='C0',lw=2)
         ax.plot(times,scipy.stats.norm.cdf(times, loc=10, scale=8),c='C0',alpha=0.5,lw=1)
         ax.set_xlim(-50,50)
-        ax.set_ylim(-1.7,3.2)
+        ax.set_ylim(-2.5,2.5)
         ax.xaxis.set_major_locator(MultipleLocator(20))
         ax.xaxis.set_minor_locator(AutoMinorLocator())
         ax.yaxis.set_minor_locator(AutoMinorLocator())
@@ -1810,15 +1819,22 @@ class plots(object):
 ########################################
 if __name__ == "__main__":
     pass
-    plots.centerofmass()
+    #plots.centerofmass()
 
+
+    #plots.nospinprofiles()
+    #plots.leftright()
+
+    #plots.normprofiles()
+
+    #plots.hangupErad()
     #t=surrkick().times
     #print(t[1:]-t[:-1])
-    plots.recoil()
+    #plots.recoil()
     #plots.check()
     #plots.nospinprofiles()
     #plots.findlarge()
-    #plots.timing()
+    plots.timing()
     #plots.recoil()
     #plots.explore()
     #plots.normprofiles()
