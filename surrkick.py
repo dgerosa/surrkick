@@ -932,11 +932,9 @@ class plots(object):
     @animate
     def recoil(self):
         '''Fig. FIX_PAPER_FIG of FIX_PAPER_REF.'''
-        #leftpanel,middlepanel,rightpanel=True,False,False
+        leftpanel,middlepanel,rightpanel=True,False,False
         #leftpanel,middlepanel,rightpanel=False,True,False
-        leftpanel,middlepanel,rightpanel=False,False,True
-
-
+        #leftpanel,middlepanel,rightpanel=False,False,True
 
         allfig=[]
 
@@ -1834,8 +1832,8 @@ if __name__ == "__main__":
     #plots.check()
     #plots.nospinprofiles()
     #plots.findlarge()
-    plots.timing()
-    #plots.recoil()
+    #plots.timing()
+    plots.recoil()
     #plots.explore()
     #plots.normprofiles()
     #plots.centerofmass()
