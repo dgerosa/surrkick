@@ -246,11 +246,12 @@ class surrkick(object):
 
     @property
     def lmax(self):
-        '''Largest l mode available.
+        '''Largest l mode available. lmax=4 for NRSur7dq2.
         Usage: lmax=surrkick.surrkick().lmax'''
 
         if self._lmax is None:
             self._lmax = sorted(self.hsample.keys())[-1][0]
+            #self._lmax=3 # To cut all extractions at l=3
         return self._lmax
 
     def h(self,l,m):
@@ -271,7 +272,12 @@ class surrkick(object):
 
         if self._hdotsample is None:
 
+            # Derivatives with splines
             self._hdotsample =  {k: spline(self.times,v.real).derivative()(self.times)+1j*spline(self.times,v.imag).derivative()(self.times) for k, v in self.hsample.items()}
+
+            # Derivatives with finite differencing
+            #self._hdotsample = {k: np.gradient(v,edge_order=2)/np.gradient(self.times,edge_order=2) for k, v in self.hsample.items()}
+
 
         return self._hdotsample
 
@@ -335,15 +341,19 @@ class surrkick(object):
 
             for l,m in summodes.single(self.lmax):
 
+                #print('summing', l, m)
+
                 # Eq. 3.14. dPpdt= dPxdt + i dPydt
                 dPpdt += (1/(8*np.pi)) * self.hdot(l,m) * ( coeffs.a(l,m) * np.conj(self.hdot(l,m+1)) + coeffs.b(l,-m) * np.conj(self.hdot(l-1,m+1)) - coeffs.b(l+1,m+1) * np.conj(self.hdot(l+1,m+1)) )
                 # Eq. 3.15
                 dPzdt += (1/(16*np.pi)) * self.hdot(l,m) * ( coeffs.c(l,m) * np.conj(self.hdot(l,m)) + coeffs.d(l,m) * np.conj(self.hdot(l-1,m)) + coeffs.d(l+1,m) * np.conj(self.hdot(l+1,m)) )
-
+            #print(" ")
             dPxdt=dPpdt.real # From the definition of Pplus
             dPydt=dPpdt.imag # From the definition of Pplus
+
             assert max(dPzdt.imag)<1e-6 # Check...
             dPzdt=dPzdt.real # Kill the imaginary part
+            #dPzdt=np.abs(dPzdt) # Kill the imaginary part
 
             self._dPdt = np.transpose([dPxdt,dPydt,dPzdt])
 
@@ -359,13 +369,14 @@ class surrkick(object):
             origin=[0,0,0]
             self._Poft = np.transpose([spline(self.times,v).antiderivative()(self.times)-o  for v,o in zip(np.transpose(self.dPdt),origin)])
 
+            #self._Poft = np.transpose([ [np.trapz(v[self.times<=t],self.times[self.times<=t]) for t in self.times] for v,o in zip(np.transpose(self.dPdt),origin)])
 
             # Eliminate unphysical drift due to the starting point of the integration. Integrate for tbuffer and substract the mean.
             tbuffer=-1000
             tend=self.times[0]-tbuffer
             P0 = np.array([spline(self.times[self.times<tend],v[self.times<tend]).antiderivative()(tend)/tbuffer  for v in np.transpose(self.Poft)])
 
-            self._Poft = np.transpose([v+po for v,po in zip(np.transpose(self._Poft),P0)])
+            #self._Poft = np.transpose([v+po for v,po in zip(np.transpose(self._Poft),P0)])
 
 
         return self._Poft
@@ -647,8 +658,8 @@ class plots(object):
             from matplotlib.backends.backend_pdf import PdfPages
             from matplotlib.ticker import AutoMinorLocator,MultipleLocator
 
-            figs = function(self)
-            #figs=[[1],[2],[3]]
+            #figs = function(self)
+            figs=[[1],[2],[3]]
             try:
                 len(figs[0])
             except:
@@ -664,14 +675,14 @@ class plots(object):
                         with warnings.catch_warnings():
                             warnings.simplefilter(action='ignore', category=FutureWarning)
                             framename = function.__name__+"_"+str(j)+"_"+"%05d.png"%i
-                            f.savefig(framename, bbox_inches='tight',format='png',dpi = 300)
-                            f.clf()
+                            #f.savefig(framename, bbox_inches='tight',format='png',dpi = 300)
+                            #f.clf()
 
 
                     rate = 100 #The movie is faster if this number is large
                     command ='ffmpeg -r '+str(rate)+' -i '+function.__name__+'_'+str(j)+'_'+'%05d.png -vcodec libx264 -crf 18 -y -an '+function.__name__+'_'+str(j)+'.mp4 -vf "scale=trunc(iw/2)*2:trunc(ih/2)*2"'
                     print(command)
-                    #os.system(command)
+                    os.system(command)
 
                     if False:
                         command="rm -f "+function.__name__+"_"+str(j)+"*.png temp"
@@ -932,7 +943,10 @@ class plots(object):
     @animate
     def recoil(self):
         '''Fig. FIX_PAPER_FIG of FIX_PAPER_REF.'''
-        leftpanel,middlepanel,rightpanel=True,False,False
+
+        leftpanel,middlepanel,rightpanel=True,True,True
+
+        #leftpanel,middlepanel,rightpanel=True,False,False
         #leftpanel,middlepanel,rightpanel=False,True,False
         #leftpanel,middlepanel,rightpanel=False,False,True
 
@@ -961,12 +975,12 @@ class plots(object):
             znew=spline(sk.times,z)(tnew)
 
             tmax=100 # Fix annyoing bug in matplotlib.axes3d (comes from a 2d backend)
-            temp=xnew[tnew<100]
-            xnew=np.append(temp,temp[-1]*np.ones(len(xnew[tnew>=100])))
-            temp=xnew[tnew<100]
-            ynew=np.append(temp,temp[-1]*np.ones(len(ynew[tnew>=100])))
-            temp=xnew[tnew<100]
-            znew=np.append(temp,temp[-1]*np.ones(len(znew[tnew>=100])))
+            temp=xnew[tnew<tmax]
+            xnew=np.append(temp,temp[-1]*np.ones(len(xnew[tnew>=tmax])))
+            temp=ynew[tnew<tmax]
+            ynew=np.append(temp,temp[-1]*np.ones(len(ynew[tnew>=tmax])))
+            temp=znew[tnew<tmax]
+            znew=np.append(temp,temp[-1]*np.ones(len(znew[tnew>=tmax])))
 
 
 
@@ -1030,13 +1044,12 @@ class plots(object):
             znew=spline(sk.times,z)(tnew)
 
             tmax=50 # Fix annyoing bug in matplotlib.axes3d (comes from a 2d backend)
-            temp=xnew[tnew<100]
-            xnew=np.append(temp,temp[-1]*np.ones(len(xnew[tnew>=100])))
-            temp=xnew[tnew<100]
-            ynew=np.append(temp,temp[-1]*np.ones(len(ynew[tnew>=100])))
-            temp=xnew[tnew<100]
-            znew=np.append(temp,temp[-1]*np.ones(len(znew[tnew>=100])))
-
+            temp=xnew[tnew<tmax]
+            xnew=np.append(temp,temp[-1]*np.ones(len(xnew[tnew>=tmax])))
+            temp=ynew[tnew<tmax]
+            ynew=np.append(temp,temp[-1]*np.ones(len(ynew[tnew>=tmax])))
+            temp=znew[tnew<tmax]
+            znew=np.append(temp,temp[-1]*np.ones(len(znew[tnew>=tmax])))
 
 
             def _recoil(tilltime):
@@ -1102,13 +1115,12 @@ class plots(object):
             znew=spline(sk.times,z)(tnew)
 
             tmax=30 # Fix annyoing bug in matplotlib.axes3d (comes from a 2d backend)
-            temp=xnew[tnew<100]
-            xnew=np.append(temp,temp[-1]*np.ones(len(xnew[tnew>=100])))
-            temp=xnew[tnew<100]
-            ynew=np.append(temp,temp[-1]*np.ones(len(ynew[tnew>=100])))
-            temp=xnew[tnew<100]
-            znew=np.append(temp,temp[-1]*np.ones(len(znew[tnew>=100])))
-
+            temp=xnew[tnew<tmax]
+            xnew=np.append(temp,temp[-1]*np.ones(len(xnew[tnew>=tmax])))
+            temp=ynew[tnew<tmax]
+            ynew=np.append(temp,temp[-1]*np.ones(len(ynew[tnew>=tmax])))
+            temp=znew[tnew<tmax]
+            znew=np.append(temp,temp[-1]*np.ones(len(znew[tnew>=tmax])))
 
 
             def _recoil(tilltime):
@@ -1210,11 +1222,13 @@ class plots(object):
         H=0.3
         S=0.05
 
+        #for q in tqdm([1,0.5]):
         for q in tqdm([1,0.5]):
 
             fig = plt.figure(figsize=(6,6))
             axs = [fig.add_axes([0,-i*(S+H),L,H]) for i in [0,1,2,3]]
 
+            #chimag=0.8
             chimag=0.8
             sks=[ surrkick(q=q,chi1=[0,0,chimag],chi2=[0,0,chimag],t_ref=-100), surrkick(q=q,chi1=[0,0,-chimag],chi2=[0,0,-chimag],t_ref=-100),
             surrkick(q=q,chi1=[0,0,chimag],chi2=[0,0,-chimag],t_ref=-100),
@@ -1229,6 +1243,18 @@ class plots(object):
                 axs[1].plot(sk.times,1./0.001*project(sk.voft,[0,1,0]),alpha=1,lw=2,c=c,dashes=d)
                 axs[2].plot(sk.times,1./0.001*project(sk.voft,[0,0,1]),alpha=0.4,lw=1,c=c)
                 axs[2].plot(sk.times,1./0.001*project(sk.voft,[0,0,1]),alpha=1,lw=2,c=c,dashes=d,label=l)
+
+                # print(" ", q, l, sk.kickcomp,sk.kick)
+                #
+                #
+                # axs[0].plot(sk.times,1./0.001*sk.dPdt[:,0],alpha=0.4,lw=1,c=c)
+                # axs[0].plot(sk.times,1./0.001*sk.dPdt[:,0],alpha=1,lw=2,c=c,dashes=d)
+                # axs[1].plot(sk.times,1./0.001*sk.dPdt[:,1],alpha=0.4,lw=1,c=c)
+                # axs[1].plot(sk.times,1./0.001*sk.dPdt[:,1],alpha=1,lw=2,c=c,dashes=d)
+                # axs[2].plot(sk.times,1./0.001*sk.dPdt[:,2],alpha=0.4,lw=1,c=c)
+                # axs[2].plot(sk.times,1./0.001*sk.dPdt[:,2],alpha=1,lw=2,c=c,dashes=d,label=l)
+
+
                 axs[3].plot(sk.times,1./0.001*project(sk.voft,sk.kickdir),alpha=0.4,lw=1,c=c)
                 axs[3].plot(sk.times,1./0.001*project(sk.voft,sk.kickdir),alpha=1,lw=2,c=c,dashes=d)
 
@@ -1245,6 +1271,8 @@ class plots(object):
                 ax.set_xlabel("$t\;\;[M]$")
             for ax,d in zip(axs,["x","y","z","v_k"]):
                 ax.set_ylim(-1.4,1.4)
+                #ax.set_ylim(-0.005,0.005)
+
                 ax.set_ylabel("$\mathbf{v}(t) \cdot \mathbf{\hat "+d+"} \;\;[0.001c]$")
 
             figs.append(fig)
@@ -1642,7 +1670,7 @@ class plots(object):
         if not os.path.isfile(filename):
 
             def _explore(i):
-
+                print(' ',i)
                 np.random.seed()
                 q=np.random.uniform(0.5,1)
                 phi = np.random.uniform(0,2*np.pi)
@@ -1667,7 +1695,10 @@ class plots(object):
 
             print("Running in parallel on", multiprocessing.cpu_count(),"cores. Storing data:", filename)
             parmap = pathos.multiprocessing.ProcessingPool(multiprocessing.cpu_count()).imap
-            data= list(tqdm(parmap(_explore, range(dim)),total=dim))
+            #data= list(tqdm(parmap(_explore, range(dim)),total=dim))
+            data= map(_explore, range(dim))
+
+
 
             with open(filename, 'wb') as f: pickle.dump(zip(*data), f)
         with open(filename, 'rb') as f: Erad,kicks,Jrad,fk = pickle.load(f)
@@ -1809,8 +1840,82 @@ class plots(object):
         return fig
 
 
+    @classmethod
+    @plottingstuff
+    def symmetry(self):
+        L=0.7
+        H=0.4
+        S=0.15
+
+        fig = plt.figure(figsize=(6,6))
+        ax = [fig.add_axes([0,-i*(S+H),L,H]) for i in [0,1,2]]
 
 
+
+        dim=int(1e4)
+
+        filename='symmetry.pkl'
+        if not os.path.isfile(filename):
+
+            kicks=[[],[],[]]
+
+            for i in tqdm(range(dim)):
+                q=1
+                phi = np.random.uniform(0,2*np.pi)
+                theta = np.arccos(np.random.uniform(-1,1))
+                r = 0.8*(np.random.uniform(0,1))**(1./3.)
+                chi1 = [ r*np.sin(theta)*np.cos(phi), r*np.sin(theta)*np.sin(phi), r*np.cos(theta) ]
+                chi2 = chi1
+                kicks[0].append(surrkick(q=q,chi1=chi1,chi2=chi2).kick)
+
+            for i in tqdm(range(dim)):
+                q=np.random.uniform(0.5,1)
+                chi1 = [ 0, 0, np.random.uniform(-0.8,0.8) ]
+                chi2 = [ 0, 0, np.random.uniform(-0.8,0.8) ]
+                kicks[1].append(surrkick(q=q,chi1=chi1,chi2=chi2).kickcomp[2])
+
+            for i in tqdm(range(dim)):
+                q=1
+                phi = np.random.uniform(0,2*np.pi)
+                theta = np.arccos(np.random.uniform(-1,1))
+                r = 0.8*(np.random.uniform(0,1))**(1./3.)
+                chi1 = [ r*np.sin(theta)*np.cos(phi), r*np.sin(theta)*np.sin(phi), r*np.cos(theta) ]
+                chi2 = [-chi1[0],-chi1[1],chi1[2]]
+                kicks[2].append(np.linalg.norm(np.cross(surrkick(q=q,chi1=chi1,chi2=chi2).kickcomp,[0,0,1])))
+
+
+            print("Storing datxa:", filename)
+
+            with open(filename, 'wb') as f: pickle.dump(kicks, f)
+        with open(filename, 'rb') as f: kicks = pickle.load(f)
+
+
+        nbins=100
+        for axx,kick in zip(ax,kicks):
+
+            axx.hist(1/0.001*np.abs(kick),bins=nbins,histtype='step',lw=2,alpha=1,color='C4',normed=True)
+            axx.hist(1/0.001*np.abs(kick),bins=nbins,histtype='stepfilled',alpha=0.3,color='C4',normed=True)
+
+            print(np.percentile(1/0.001*np.abs(kick), 50),np.percentile(1/0.001*np.abs(kick), 90))
+            axx.axvline(np.percentile(1/0.001*np.abs(kick), 50),c='gray',ls='dashed')
+            axx.axvline(np.percentile(1/0.001*np.abs(kick), 90),c='gray',ls='dotted')
+
+
+        ax[0].set_xlabel("$v_k \;\;[0.001c]$")
+        ax[1].set_xlabel("$|\mathbf{v_k}\cdot \mathbf{\hat z}| \;\;[0.001c]$")
+        ax[2].set_xlabel("$|\mathbf{v_k}\\times \mathbf{\hat z}| \;\;[0.001c]$")
+
+        ax[0].text(0.5,0.9,'$q=1$\n$\\boldsymbol{\\chi_1}=\\boldsymbol{\\chi_2}$\n$\longrightarrow v_k=0$',verticalalignment='top', transform=ax[0].transAxes,linespacing=1.6)
+        ax[1].text(0.5,0.9,'${\\rm Generic}\; q$\n$\\boldsymbol{\\chi_1}\\times \mathbf{\hat z} = \\boldsymbol{\\chi_2}\\times \mathbf{\hat z}=0$\n$\longrightarrow \mathbf{v_k}\cdot\mathbf{\hat z}=0$',verticalalignment='top',transform=ax[1].transAxes,linespacing=1.6)
+        ax[2].text(0.5,0.9,'$q=1$\n$\\boldsymbol{\\chi_1}\\cdot \mathbf{\hat z}=\\boldsymbol{\\chi_2}\\cdot \mathbf{\hat z}$\n$\\boldsymbol{\\chi_1}\\times \mathbf{\hat z} = -\\boldsymbol{\\chi_2}\\times \mathbf{\hat z}$\n$\longrightarrow \mathbf{v_k}\\times\mathbf{\hat z}=0$',verticalalignment='top',transform=ax[2].transAxes,linespacing=1.6)
+
+        for axx in ax:
+            axx.xaxis.set_minor_locator(AutoMinorLocator())
+            axx.yaxis.set_minor_locator(AutoMinorLocator())
+
+
+
+        return fig
 
 
 
@@ -1818,7 +1923,13 @@ class plots(object):
 if __name__ == "__main__":
     pass
     #plots.centerofmass()
+    plots.symmetry()
+    #plots.findlarge()
+    #plots.explore()
+    #plots.spinaligned()
+    #plots.recoil()
 
+    #print(surrkick().kick)
 
     #plots.nospinprofiles()
     #plots.leftright()
@@ -1833,7 +1944,7 @@ if __name__ == "__main__":
     #plots.nospinprofiles()
     #plots.findlarge()
     #plots.timing()
-    plots.recoil()
+    #plots.recoil()
     #plots.explore()
     #plots.normprofiles()
     #plots.centerofmass()
