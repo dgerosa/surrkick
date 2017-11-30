@@ -1358,7 +1358,7 @@ class plots(object):
         S=0.05
         axs = [fig.add_axes([i*(S+L),0,L,H]) for i in [0,1]]
 
-        dim=100
+        dim=200
 
         chimag=0.8
         tref_vals=np.linspace(-250,-100,dim)
@@ -1923,14 +1923,14 @@ class plots(object):
 if __name__ == "__main__":
     pass
     #plots.centerofmass()
-    plots.symmetry()
+    #plots.symmetry()
     #plots.findlarge()
     #plots.explore()
     #plots.spinaligned()
     #plots.recoil()
 
     #print(surrkick().kick)
-
+    plots.alphaseries()
     #plots.nospinprofiles()
     #plots.leftright()
 
