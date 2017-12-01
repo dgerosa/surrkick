@@ -92,11 +92,8 @@ class coeffs(object):
 
     @staticmethod
     def f(l,m):
-
-        '''
-        Eq. (3.25) of arXiv:0707.4654.
-        Usage: `f=surrkick.coeffs.f(l,m)`
-        '''
+        '''Eq. (3.25) of arXiv:0707.4654.
+        Usage: `f=surrkick.coeffs.f(l,m)`'''
 
         return  ( l*(l+1) - m*(m+1) )**0.5
 
@@ -119,41 +116,6 @@ class convert(object):
 
         return x / 299792.458
 
-
-    # TODO: I think I can remove these.
-    # @staticmethod
-    # def anglestocoords(chi1mag,chi2mag,theta1,theta2,deltaphi,phi1):
-    #     ''' TODO: check if I still need this'''
-    #
-    #     assert theta1>=0 and theta1<=np.pi and theta2>=0 and theta2<=np.pi
-    #     phi2 = deltaphi+phi1
-    #     chi1 = chi1mag*np.array([np.sin(theta1)*np.cos(phi1), np.sin(theta1)*np.sin(phi1), np.cos(theta1)])
-    #     chi2 = chi2mag*np.array([np.sin(theta2)*np.cos(phi2), np.sin(theta2)*np.sin(phi2), np.cos(theta2)])
-    #     return chi1,chi2
-    #
-    # @staticmethod
-    # def coordstoangles(chi1,chi2):
-    #     ''' TODO: check if I still need this'''
-    #
-    #     chi1mag = np.linalg.norm(chi1)
-    #     chi2mag = np.linalg.norm(chi2)
-    #
-    #     theta1 = np.arccos(chi1[2]/chi1mag)
-    #     theta2 = np.arccos(chi2[2]/chi2mag)
-    #
-    #     if chi1[1]==0:
-    #         phi1 = np.sign(chi1[0])*np.arccos(chi1[0]/(chi1mag*np.sin(theta1)))
-    #     else:
-    #         phi1 = np.sign(chi1[1])*np.arccos(chi1[0]/(chi1mag*np.sin(theta1)))
-    #     if chi2[1]==0:
-    #         phi2 = np.sign(chi2[0])*np.arccos(chi2[0]/(chi2mag*np.sin(theta2)))
-    #     else:
-    #         phi2 = np.sign(chi2[1])*np.arccos(chi2[0]/(chi2mag*np.sin(theta2)))
-    #     deltaphi = phi2 - phi1
-    #
-    #     return chi1mag,chi2mag,theta1,theta2,deltaphi,phi1
-
-
 @singleton
 class surrogate(object):
     '''Initialize the NRSur7dq2 surrogate model described in arXiv:1705.07089. The only purpose of this class is to wrap the surrogate with a singleton pattern (which means there can only be one instance of this class, and creation of additional instances just return the first one).'''
@@ -173,9 +135,7 @@ class surrogate(object):
 
 
 class surrkick(object):
-
-    '''
-    Extract energy, linear momentum and angular momentum emitted in gravitational waves from a waveform surrogate model. We use a frame where the orbital angular momentum is along the z axis and the heavier (lighter) is on the positive (negative) x-axis at the reference time `t_ref`.
+    '''Extract energy, linear momentum and angular momentum emitted in gravitational waves from a waveform surrogate model. We use a frame where the orbital angular momentum is along the z axis and the heavier (lighter) is on the positive (negative) x-axis at the reference time `t_ref`.
     Usage: sk=surrkick.surrkick(q=1,chi1=[0,0,0],chi2=[0,0,0],t_ref=-100)
     Parameters:
     - `q`: binary mass ratio in the range 1:1 to 2:1. Can handle both conventions: q in [0.5,1] or [1,2].
@@ -185,13 +145,10 @@ class surrkick(object):
     '''
 
     def __init__(self,q=1,chi1=[0,0,0],chi2=[0,0,0],t_ref=-100):
-        '''
-        Initialize the `surrkick` class.
-        '''
+        '''Initialize the `surrkick` class.'''
 
         self.sur=surrogate().sur()
         '''Initialize the surrogate. Note it's a singleton'''
-
 
         self.q = max(q,1/q)
         '''Binary mass ratio in the range 1:1 to 2:1.
@@ -215,7 +172,7 @@ class surrkick(object):
         Usage: t_ref=surrkick.surrkick().t_ref'''
 
         assert self.t_ref>=-4500 and self.t_ref<=-100 # Check you're in the regions where spins are OK.
-        if t_ref==-4500: # This is the default value NRSur7dq2, which wants a None
+        if t_ref==-4500: # This is the default value for NRSur7dq2, which wants a None
             self.t_ref = None
 
         # Hidden variables for lazy loading
@@ -232,7 +189,6 @@ class surrkick(object):
         self._Joft = None
         self._Jrad = None
         self._xoft = None
-
 
 
     @property
@@ -341,19 +297,16 @@ class surrkick(object):
 
             for l,m in summodes.single(self.lmax):
 
-                #print('summing', l, m)
-
                 # Eq. 3.14. dPpdt= dPxdt + i dPydt
                 dPpdt += (1/(8*np.pi)) * self.hdot(l,m) * ( coeffs.a(l,m) * np.conj(self.hdot(l,m+1)) + coeffs.b(l,-m) * np.conj(self.hdot(l-1,m+1)) - coeffs.b(l+1,m+1) * np.conj(self.hdot(l+1,m+1)) )
                 # Eq. 3.15
                 dPzdt += (1/(16*np.pi)) * self.hdot(l,m) * ( coeffs.c(l,m) * np.conj(self.hdot(l,m)) + coeffs.d(l,m) * np.conj(self.hdot(l-1,m)) + coeffs.d(l+1,m) * np.conj(self.hdot(l+1,m)) )
-            #print(" ")
+
             dPxdt=dPpdt.real # From the definition of Pplus
             dPydt=dPpdt.imag # From the definition of Pplus
 
             assert max(dPzdt.imag)<1e-6 # Check...
             dPzdt=dPzdt.real # Kill the imaginary part
-            #dPzdt=np.abs(dPzdt) # Kill the imaginary part
 
             self._dPdt = np.transpose([dPxdt,dPydt,dPzdt])
 
@@ -369,15 +322,10 @@ class surrkick(object):
             origin=[0,0,0]
             self._Poft = np.transpose([spline(self.times,v).antiderivative()(self.times)-o  for v,o in zip(np.transpose(self.dPdt),origin)])
 
-            #self._Poft = np.transpose([ [np.trapz(v[self.times<=t],self.times[self.times<=t]) for t in self.times] for v,o in zip(np.transpose(self.dPdt),origin)])
-
             # Eliminate unphysical drift due to the starting point of the integration. Integrate for tbuffer and substract the mean.
             tbuffer=-1000
             tend=self.times[0]-tbuffer
             P0 = np.array([spline(self.times[self.times<tend],v[self.times<tend]).antiderivative()(tend)/tbuffer  for v in np.transpose(self.Poft)])
-
-            #self._Poft = np.transpose([v+po for v,po in zip(np.transpose(self._Poft),P0)])
-
 
         return self._Poft
 
@@ -477,13 +425,6 @@ class surrkick(object):
 
         if self._xoft is None:
             # The integral of a spline is called antiderivative (mmmh...)
-
-
-            #v0= np.array([spline(self.times[self.times<-3500],v[self.times<-3500]).antiderivative()(-3500)/(-1000)  for v in np.transpose(self.voft)])
-
-
-            #print("v0",v0)
-
             origin=[0,0,0]
             self._xoft = np.transpose([spline(self.times,v).antiderivative()(self.times)-vo*self.times  for v,vo in zip(np.transpose(self.voft),origin)])
         return self._xoft
@@ -495,89 +436,6 @@ def project(timeseries,direction):
     Usage projection=project(timeseries, direction)'''
 
     return np.array([np.dot(t,direction) for t in timeseries])
-
-
-#
-# ## TODO. I think I don't need this anymore
-# def parseSXS(index):
-#     '''
-#     Get data from Chris' Moore parsing of the SXS catalog. Might be wrong, surely not accurate.
-#
-#     Extract some info form the SXS data. By default only the total kick and its directio is extracted. If you want the fluxes as well, turn the flag on.
-#     TODO: Ideally this function should extract spin and mass ratio, initial directions etc etc from the SXS metadata
-#     '''
-#     root = '/Users/dgerosa/reps/kickedwaveform/RiccardoKicksProject/store.maths.cam.ac.uk/DAMTP/cjm96/kick_results/'
-#     trailindex="%04d" % (index,) # Trail zeros to the integer index
-#     folder= root+"SXS-"+trailindex
-#
-#     # Extract metatada
-#     with open(folder+"/kicks.txt", "r") as openfile:
-#         for line in openfile:
-#             if "Radiated Linear Momentum X" in line: deltaPx = float(line.split()[5])
-#             if "Radiated Linear Momentum Y" in line: deltaPy = float(line.split()[5])
-#             if "Radiated Linear Momentum Z" in line: deltaPz = float(line.split()[5])
-#             if "Radiated Energy" in line and "Newtonian" not in line : Erad = float(line.split()[3])
-#             if "Radiated Angular Momentum X" in line: deltaJx = float(line.split()[5])
-#             if "Radiated Angular Momentum Y" in line: deltaJy = float(line.split()[5])
-#             if "Radiated Angular Momentum Z" in line: deltaJz = float(line.split()[5])
-#
-#     with open(folder+"/metadata"+trailindex+".txt") as openfile:
-#         for line in openfile:
-#             if "relaxed-mass1" in line: m1=float(line.split()[2])
-#             if "relaxed-mass2" in line: m2=float(line.split()[2])
-#
-#     Prad = np.sqrt( deltaPx*deltaPx + deltaPy*deltaPy + deltaPz*deltaPz )
-#     Jrad = np.sqrt( deltaJx*deltaJx + deltaJy*deltaJy + deltaJz*deltaJz )
-#     q=min(m1/m2,m2/m1)
-#
-#     return q, [Erad, Prad, Jrad]
-
-## TODO. I think I don't need this anymore
-# class optkick(object):
-#
-#     def __init__(self,q=1,chi1=[0,0,0],chi2=[0,0,0],t_ref=None):
-#         self.q = q # Mass ratio
-#         self.chi1 = np.array(chi1) # chi1 is the spin of the larger BH
-#         self.chi2 = np.array(chi2) # chi2 is the spin of the smaller BH
-#         self.t_ref=t_ref
-#         self.chi1m,self.chi2m,self.theta1,self.theta2,self.deltaphi,dummy = convert.coordstoangles(self.chi1,self.chi2)
-#
-#
-#     def _phasefit(self,x):
-#         return fitkick(self.q,self.chi1m,self.chi2m,self.theta1,self.theta2,self.deltaphi,x)
-#     def phasefit(self,xs):
-#         return np.array([self._phasefit(x) for x in xs])
-#
-#     def _phasesur(self,x):
-#         chi1h,chi2h=convert.anglestocoords(self.chi1m,self.chi2m,self.theta1,self.theta2,self.deltaphi,x)
-#         return surrkick(q=self.q,chi1=chi1h,chi2=chi2h,t_ref=self.t_ref).kick
-#     def phasesur(self,xs):
-#         return np.array([self._phasesur(x) for x in xs])
-#
-#     def find(self,flag):
-#         if flag=='fit':
-#             phasefunc=self._phasefit
-#         elif flag=='sur':
-#             phasefunc=self._phasesur
-#         else:
-#             raise InputError, "set flag equal to 'fit' or 'sur'"
-#
-#
-#         xs=np.linspace(-np.pi,np.pi,300)
-#         evals= np.array([phasefunc(x) for x in xs])
-#         minx = xs[evals==min(evals)][0]
-#         maxx = xs[evals==max(evals)][0]
-#
-#         #print(minx,maxx)
-#
-#         phasemin=scipy.fmin(lambda x:phasefunc(x),minx)
-#         phasemax=scipy.fmin(lambda x:-phasefunc(x),maxx)
-#
-#         #phasemin,phasemax = [scipy.optimize.fminbound(lambda x: sign*phasefunc(x),-np.pi,np.pi) for sign in [1,-1]]
-#         kickmin,kickmax = [phasefunc(x) for x in phasemin,phasemax]
-#
-#         return kickmin,kickmax
-#
 
 
 class plots(object):
