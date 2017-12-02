@@ -444,10 +444,8 @@ class plots(object):
     def plottingstuff(function):
         '''Python decorator to handle plotting, including defining all defaults and storing the final pdf. Just add @plottingstuff to any methond of the plots class.'''
 
-        #def wrapper(*args, **kw):
         def wrapper(self):
             print("Plotting:", function.__name__+".pdf")
-
 
             # Before function call
             global plt,AutoMinorLocator,MultipleLocator
@@ -469,7 +467,7 @@ class plots(object):
             from matplotlib.backends.backend_pdf import PdfPages
             from matplotlib.ticker import AutoMinorLocator,MultipleLocator
             pp= PdfPages(function.__name__+".pdf")
-            #function(*args, **kw)
+
             fig = function(self)
             # Handle multiple figures
             try:
@@ -516,8 +514,7 @@ class plots(object):
             from matplotlib.backends.backend_pdf import PdfPages
             from matplotlib.ticker import AutoMinorLocator,MultipleLocator
 
-            #figs = function(self)
-            figs=[[1],[2],[3]]
+            figs = function(self)
             try:
                 len(figs[0])
             except:
@@ -533,9 +530,8 @@ class plots(object):
                         with warnings.catch_warnings():
                             warnings.simplefilter(action='ignore', category=FutureWarning)
                             framename = function.__name__+"_"+str(j)+"_"+"%05d.png"%i
-                            #f.savefig(framename, bbox_inches='tight',format='png',dpi = 300)
-                            #f.clf()
-
+                            f.savefig(framename, bbox_inches='tight',format='png',dpi = 300)
+                            f.clf()
 
                     rate = 100 #The movie is faster if this number is large
                     command ='ffmpeg -r '+str(rate)+' -i '+function.__name__+'_'+str(j)+'_'+'%05d.png -vcodec libx264 -crf 18 -y -an '+function.__name__+'_'+str(j)+'.mp4 -vf "scale=trunc(iw/2)*2:trunc(ih/2)*2"'
@@ -552,56 +548,6 @@ class plots(object):
 
 
 
-    # # TODO: I don't need this anymore
-    # @classmethod
-    # @plottingstuff
-    # def nonspinning(self):
-    #
-    #
-    #
-    #     figP = plt.figure(figsize=(6,6))
-    #     L=0.7
-    #     H=0.7
-    #     S=0.2
-    #     axP = [figP.add_axes([i*(S+H),0,L,H]) for i in [0,1,2]]
-    #
-    #
-    #     q_vals = np.linspace(0.5,1,100)
-    #
-    #     if True:
-    #         data=[]
-    #         t0=time.time()
-    #         for q in q_vals:
-    #             print(q)
-    #             sk = surrkick(q=q)
-    #             data.append([sk.Erad,sk.Prad,sk.Jrad])
-    #
-    #         print("Time", time.time()-t0)
-    #
-    #         for ax, d in zip(axall,zip(*data)):
-    #             ax.plot(q_vals,d,label='surrogate (samples)')
-    #
-    #     if False:
-    #         fit=[precession.finalkick(0,0,0,q,0,0) for q in q_vals]
-    #         axall[1].plot(q_vals,fit,label='fit by Gonzalez 2007')
-    #
-    #     if True:
-    #         # These are the sims with zero spins in the SXS public catalog
-    #         q_vals, data = zip(*[parseSXS(i) for i in [74,70,72,73,1,66,87,86,67,71,68,69,91,90,2,180,198,8,100,93,7,194,184,169]])
-    #
-    #
-    #         for ax, d in zip(axall,zip(*data)):
-    #             ax.scatter(q_vals,d,facecolor='none',edgecolor='red',label='surrogate (int)')
-    #
-    #     #axall[0].set_xlabel("$q$")
-    #     #axall[1].set_xlabel("$q$")
-    #     #axall[0].set_ylabel("$v_k\;\;[\\rm km/s]$")
-    #     #axall[1].set_ylabel("$E_{\\rm rad}$")
-    #
-    #     #axall[0].legend(fontsize=15)
-    #     #axall[1].legend(fontsize=15)
-    #
-    #     return fig
 
     @classmethod
     @plottingstuff
@@ -803,19 +749,14 @@ class plots(object):
         '''Fig. FIX_PAPER_FIG of FIX_PAPER_REF.'''
 
         leftpanel,middlepanel,rightpanel=True,True,True
-
         #leftpanel,middlepanel,rightpanel=True,False,False
         #leftpanel,middlepanel,rightpanel=False,True,False
         #leftpanel,middlepanel,rightpanel=False,False,True
 
         allfig=[]
 
-        #tnew=np.linspace(-4500,100,10)
         tnew=np.linspace(-4500,100,4601)
-
         tnew=np.append(tnew,np.ones(100)*tnew[-1])
-
-
 
         # Left panel
         if leftpanel:
@@ -825,13 +766,10 @@ class plots(object):
             chi2=[0,0,0]
             sk = surrkick(q=q , chi1=chi1,chi2=chi2)
             x0,y0,z0=sk.xoft[sk.times==min(abs(sk.times))][0]
-
-
             x,y,z=np.transpose(sk.xoft)
             xnew=spline(sk.times,x)(tnew)
             ynew=spline(sk.times,y)(tnew)
             znew=spline(sk.times,z)(tnew)
-
             tmax=100 # Fix annyoing bug in matplotlib.axes3d (comes from a 2d backend)
             temp=xnew[tnew<tmax]
             xnew=np.append(temp,temp[-1]*np.ones(len(xnew[tnew>=tmax])))
@@ -840,23 +778,18 @@ class plots(object):
             temp=znew[tnew<tmax]
             znew=np.append(temp,temp[-1]*np.ones(len(znew[tnew>=tmax])))
 
-
-
             def _recoil(tilltime):
                 fig = plt.figure(figsize=(6,6))
                 ax=fig.add_axes([0,0,0.7,0.7], projection='3d')
                 fig.text(0.25,0.67,'$t='+str(int(tilltime))+'M$',transform=fig.transFigure, horizontalalignment='left',verticalalignment='bottom')
-
                 x=xnew[tnew<tilltime]
                 y=ynew[tnew<tilltime]
                 z=znew[tnew<tilltime]
-
                 ax.plot(x-x0,y-y0,z-z0)
                 if tilltime>0:
                     ax.scatter(0,0,0,marker='.',s=60,alpha=0.5)
                 x,y,z=np.transpose(sk.xoft)
                 vx,vy,vz=np.transpose(sk.voft)
-
                 ax.set_xlim(-0.004,0.0045)
                 ax.set_ylim(-0.0025,0.006)
                 ax.set_zlim(-0.006,0.0035)
@@ -873,19 +806,13 @@ class plots(object):
                 ax.xaxis.set_minor_locator(AutoMinorLocator())
                 ax.yaxis.set_minor_locator(AutoMinorLocator())
                 ax.zaxis.set_minor_locator(AutoMinorLocator())
-
                 return fig
 
-            #print("Running in parallel on", multiprocessing.cpu_count(),"cores.")
-            #parmap = pathos.multiprocessing.ProcessingPool(multiprocessing.cpu_count()).imap
-            #figs= list(tqdm(parmap(_recoil, tnew),total=len(tnew)))
             figs=[_recoil(t) for t in tqdm(tnew)]
-
             allfig.append(figs)
 
         else:
             allfig.append([None])
-
 
         # Middle panel
         if middlepanel:
@@ -893,14 +820,12 @@ class plots(object):
             q=0.5
             chi1=[0.8,0,0]
             chi2=[-0.8,0,0]
-
             sk = surrkick(q=q , chi1=chi1,chi2=chi2)
             x0,y0,z0=sk.xoft[sk.times==min(abs(sk.times))][0]
             x,y,z=np.transpose(sk.xoft)
             xnew=spline(sk.times,x)(tnew)
             ynew=spline(sk.times,y)(tnew)
             znew=spline(sk.times,z)(tnew)
-
             tmax=50 # Fix annyoing bug in matplotlib.axes3d (comes from a 2d backend)
             temp=xnew[tnew<tmax]
             xnew=np.append(temp,temp[-1]*np.ones(len(xnew[tnew>=tmax])))
@@ -909,22 +834,18 @@ class plots(object):
             temp=znew[tnew<tmax]
             znew=np.append(temp,temp[-1]*np.ones(len(znew[tnew>=tmax])))
 
-
             def _recoil(tilltime):
                 fig = plt.figure(figsize=(6,6))
                 ax=fig.add_axes([0,0,0.7,0.7], projection='3d')
                 fig.text(0.25,0.67,'$t='+str(int(tilltime))+'M$',transform=fig.transFigure, horizontalalignment='left',verticalalignment='bottom')
-
                 x=xnew[tnew<tilltime]
                 y=ynew[tnew<tilltime]
                 z=znew[tnew<tilltime]
-
                 ax.plot(x-x0,y-y0,z-z0)
                 if tilltime>0:
                     ax.scatter(0,0,0,marker='.',s=60,alpha=0.5)
                 x,y,z=np.transpose(sk.xoft)
                 vx,vy,vz=np.transpose(sk.voft)
-
                 ax.set_xlim(-0.005,0.005)
                 ax.set_ylim(-0.005,0.005)
                 ax.set_zlim(-0.005,0.005)
@@ -941,20 +862,13 @@ class plots(object):
                 ax.xaxis.set_minor_locator(AutoMinorLocator())
                 ax.yaxis.set_minor_locator(AutoMinorLocator())
                 ax.zaxis.set_minor_locator(AutoMinorLocator())
-
                 return fig
 
-            #print("Running in parallel on", multiprocessing.cpu_count(),"cores.")
-            #parmap = pathos.multiprocessing.ProcessingPool(multiprocessing.cpu_count()).imap
-            #figs= list(tqdm(parmap(_recoil, tnew),total=len(tnew)))
             figs=[_recoil(t) for t in tqdm(tnew)]
-
             allfig.append(figs)
-
 
         else:
             allfig.append([None])
-
 
         # Right panel
         if rightpanel:
@@ -964,14 +878,12 @@ class plots(object):
             chi1=np.array(chi1)*0.8/np.linalg.norm(chi1)
             chi2=[-0.87810809, 0.06485156, 0.47404689]
             chi2=np.array(chi2)*0.8/np.linalg.norm(chi2)
-
             sk = surrkick(q=q , chi1=chi1,chi2=chi2)
             x0,y0,z0=sk.xoft[sk.times==min(abs(sk.times))][0]
             x,y,z=np.transpose(sk.xoft)
             xnew=spline(sk.times,x)(tnew)
             ynew=spline(sk.times,y)(tnew)
             znew=spline(sk.times,z)(tnew)
-
             tmax=30 # Fix annyoing bug in matplotlib.axes3d (comes from a 2d backend)
             temp=xnew[tnew<tmax]
             xnew=np.append(temp,temp[-1]*np.ones(len(xnew[tnew>=tmax])))
@@ -980,22 +892,18 @@ class plots(object):
             temp=znew[tnew<tmax]
             znew=np.append(temp,temp[-1]*np.ones(len(znew[tnew>=tmax])))
 
-
             def _recoil(tilltime):
                 fig = plt.figure(figsize=(6,6))
                 ax=fig.add_axes([0,0,0.7,0.7], projection='3d')
                 fig.text(0.25,0.67,'$t='+str(int(tilltime))+'M$',transform=fig.transFigure, horizontalalignment='left',verticalalignment='bottom')
-
                 x=xnew[tnew<tilltime]
                 y=ynew[tnew<tilltime]
                 z=znew[tnew<tilltime]
-
                 ax.plot(x-x0,y-y0,z-z0)
                 if tilltime>0:
                     ax.scatter(0,0,0,marker='.',s=60,alpha=0.5)
                 x,y,z=np.transpose(sk.xoft)
                 vx,vy,vz=np.transpose(sk.voft)
-
                 ax.set_xlim(-0.006,0.005)
                 ax.set_ylim(-0.006,0.005)
                 ax.set_zlim(0,0.011)
@@ -1016,14 +924,9 @@ class plots(object):
                 ax.xaxis.set_minor_locator(AutoMinorLocator())
                 ax.yaxis.set_minor_locator(AutoMinorLocator())
                 ax.zaxis.set_minor_locator(AutoMinorLocator())
-
                 return fig
 
-            #print("Running in parallel on", multiprocessing.cpu_count(),"cores.")
-            #parmap = pathos.multiprocessing.ProcessingPool(multiprocessing.cpu_count()).imap
-            #figs= list(tqdm(parmap(_recoil, tnew),total=len(tnew)))
             figs=[_recoil(t) for t in tqdm(tnew)]
-
             allfig.append(figs)
 
         else:
@@ -1080,13 +983,11 @@ class plots(object):
         H=0.3
         S=0.05
 
-        #for q in tqdm([1,0.5]):
         for q in tqdm([1,0.5]):
 
             fig = plt.figure(figsize=(6,6))
             axs = [fig.add_axes([0,-i*(S+H),L,H]) for i in [0,1,2,3]]
 
-            #chimag=0.8
             chimag=0.8
             sks=[ surrkick(q=q,chi1=[0,0,chimag],chi2=[0,0,chimag],t_ref=-100), surrkick(q=q,chi1=[0,0,-chimag],chi2=[0,0,-chimag],t_ref=-100),
             surrkick(q=q,chi1=[0,0,chimag],chi2=[0,0,-chimag],t_ref=-100),
@@ -1101,21 +1002,8 @@ class plots(object):
                 axs[1].plot(sk.times,1./0.001*project(sk.voft,[0,1,0]),alpha=1,lw=2,c=c,dashes=d)
                 axs[2].plot(sk.times,1./0.001*project(sk.voft,[0,0,1]),alpha=0.4,lw=1,c=c)
                 axs[2].plot(sk.times,1./0.001*project(sk.voft,[0,0,1]),alpha=1,lw=2,c=c,dashes=d,label=l)
-
-                # print(" ", q, l, sk.kickcomp,sk.kick)
-                #
-                #
-                # axs[0].plot(sk.times,1./0.001*sk.dPdt[:,0],alpha=0.4,lw=1,c=c)
-                # axs[0].plot(sk.times,1./0.001*sk.dPdt[:,0],alpha=1,lw=2,c=c,dashes=d)
-                # axs[1].plot(sk.times,1./0.001*sk.dPdt[:,1],alpha=0.4,lw=1,c=c)
-                # axs[1].plot(sk.times,1./0.001*sk.dPdt[:,1],alpha=1,lw=2,c=c,dashes=d)
-                # axs[2].plot(sk.times,1./0.001*sk.dPdt[:,2],alpha=0.4,lw=1,c=c)
-                # axs[2].plot(sk.times,1./0.001*sk.dPdt[:,2],alpha=1,lw=2,c=c,dashes=d,label=l)
-
-
                 axs[3].plot(sk.times,1./0.001*project(sk.voft,sk.kickdir),alpha=0.4,lw=1,c=c)
                 axs[3].plot(sk.times,1./0.001*project(sk.voft,sk.kickdir),alpha=1,lw=2,c=c,dashes=d)
-
             axs[2].legend(loc="lower left",fontsize=14,ncol=2,handlelength=3.86)
             axs[0].text(0.05,0.7,'$q='+str(q)+'$\n$\chi_1=\chi_2=0.8$',transform=axs[    0].transAxes,linespacing=1.4)
             for ax in axs:
@@ -1129,8 +1017,6 @@ class plots(object):
                 ax.set_xlabel("$t\;\;[M]$")
             for ax,d in zip(axs,["x","y","z","v_k"]):
                 ax.set_ylim(-1.4,1.4)
-                #ax.set_ylim(-0.005,0.005)
-
                 ax.set_ylabel("$\mathbf{v}(t) \cdot \mathbf{\hat "+d+"} \;\;[0.001c]$")
 
             figs.append(fig)
@@ -1217,7 +1103,6 @@ class plots(object):
         axs = [fig.add_axes([i*(S+L),0,L,H]) for i in [0,1]]
 
         dim=200
-
         chimag=0.8
         tref_vals=np.linspace(-250,-100,dim)
         kick_vals=[]
@@ -1227,21 +1112,14 @@ class plots(object):
 
         axs[0].plot(tref_vals,1/0.001*np.array(kick_vals))
         axs[0].scatter(-125,1/0.001*surrkick(q=1 , chi1=[chimag,0,0],chi2=[-chimag,0,0],t_ref=-125).kick,marker='o',edgecolor='C1',facecolor='none',s=100,linewidth='2')
-
         axs[0].scatter(-100,1/0.001*surrkick(q=1 , chi1=[chimag,0,0],chi2=[-chimag,0,0],t_ref=-100).kick,marker='x',edgecolor='gray',facecolor='gray',s=100,linewidth='2')
-
-
         alpha_vals=np.linspace(-np.pi,np.pi,dim)
         kick_vals=[]
         for alpha in tqdm(alpha_vals):
             sk = surrkick(q=1 , chi1=[chimag*np.cos(alpha),chimag*np.sin(alpha),0],chi2=[-chimag*np.cos(alpha),-chimag*np.sin(alpha),0])
             kick_vals.append(sk.kick)
         axs[1].plot(alpha_vals,1/0.001*np.array(kick_vals),c='C3')
-
         axs[1].scatter(0,1/0.001*surrkick(q=1 , chi1=[chimag,0,0],chi2=[-chimag,0,0],t_ref=-100).kick,marker='x',edgecolor='gray',facecolor='gray',s=100,linewidth='2')
-
-
-
 
         axs[0].text(0.05,0.5,'$q=1$\n$\chi_1=\chi_2=0.8$\n$\\alpha=0$',transform=axs[0].transAxes,linespacing=1.4)
         axs[1].text(0.05,0.5,'$q=1$\n$\chi_1=\chi_2=0.8$\n$t_{\\rm ref}=-100M$',transform=axs[1].transAxes,linespacing=1.4)
@@ -1270,14 +1148,12 @@ class plots(object):
 
         ax.axvline(0,c='black',alpha=0.3,ls='dotted')
         ax.axhline(0,c='black',alpha=0.3,ls='dotted')
-
         alpha_vals=np.linspace(-np.pi,np.pi,50)
         kick_vals=[]
         for i, alpha in enumerate(tqdm(alpha_vals)):
             sk = surrkick(q=1, chi1=[chimag*np.cos(alpha),chimag*np.sin(alpha),0],chi2=[-chimag*np.cos(alpha),-chimag*np.sin(alpha),0])
             color=plt.cm.copper(i/len(alpha_vals))
             ax.plot(sk.times,1/0.001*project(sk.voft,sk.kickdir),color=color,alpha=0.8)
-
         ax.set_xlim(-100,50)
         ax.set_xlabel("$t\;\;[M]$")
         ax.set_ylabel("$\mathbf{v}(t)\cdot \mathbf{\hat v_k} \;\;[0.001 c]$")
@@ -1295,7 +1171,6 @@ class plots(object):
         L=0.7
         H=0.6
         S=0.05
-
         fig = plt.figure(figsize=(6,6))
         ax = fig.add_axes([0,0,L,H])
         ax.axhline(0,c='black',alpha=0.3,ls='dotted')
@@ -1303,7 +1178,6 @@ class plots(object):
         q=0.5
         chimag=0.8
         sk= surrkick(q=q,chi1=[0,0,chimag],chi2=[0,0,-chimag],t_ref=-100)
-
         dim=15
         store=[]
         for i in tqdm(np.linspace(0,1,dim)):
@@ -1329,83 +1203,11 @@ class plots(object):
         return fig
 
 
-
-
-
-    #
-    # # TODO: can I remove tihs?
-    # @classmethod
-    # @plottingstuff
-    # def testoptimizer(self):
-    #
-    #     allfig=[]
-    #
-    #     for j in range(16):
-    #         print(j)
-    #         fig = plt.figure(figsize=(6,6))
-    #         ax=fig.add_axes([0,0,0.7,0.7])
-    #         q=np.random.uniform(0.5,1)
-    #         chi1m=np.random.uniform(0,0.8)
-    #         chi2m=np.random.uniform(0,0.8)
-    #         theta1=np.arccos(np.random.uniform(-1,1))
-    #         theta2=np.arccos(np.random.uniform(-1,1))
-    #         deltaphi=np.random.uniform(-np.pi,np.pi)
-    #         chi1,chi2=convert.anglestocoords(chi1m,chi2m,theta1,theta2,deltaphi,1.)
-    #         alpha_vals=np.linspace(-np.pi,np.pi,100)
-    #
-    #         tref_vals=[None]+list(np.linspace(-3500,-500,4))
-    #         for i,t_ref in enumerate(tref_vals):
-    #             print(j,t_ref)
-    #             color=plt.cm.copper(i/len(tref_vals))
-    #             ok=optkick(q=q,chi1=chi1,chi2=chi2,t_ref=t_ref)
-    #             ax.plot(alpha_vals,convert.kms(ok.phasesur(alpha_vals)),color=color)
-    #
-    #         ax.plot(alpha_vals,convert.kms(ok.phasefit(alpha_vals)),color='dodgerblue',lw=2.5,dashes=[8,3])
-    #
-    #
-    #         #fitmin,fitmax = ok.find(flag='fit')
-    #         #ax.axhline(fitmin,c='C0',ls='dotted')
-    #         #ax.axhline(fitmax,c='C0',ls='dotted')
-    #         #fitmin,fitmax = ok.find(flag='sur')
-    #         #ax.axhline(fitmin,c='C1',ls='dotted')
-    #         #ax.axhline(fitmax,c='C1',ls='dotted')
-    #
-    #         #
-    #         #     kick_vals=[]
-    #         #     for alpha in alpha_vals:
-    #         #         sk = surrkick(q=1 , chi1=[chimag*np.cos(alpha),chimag*np.sin(alpha),0],chi2=[-chimag*np.cos(alpha),-chimag*np.sin(alpha),0])
-    #         #         kick_vals.append(convert.kms(sk.kickcomp[-1]))
-    #         #
-    #         #     ax.plot(alpha_vals,kick_vals,color=color)
-    #         #     #ax.plot(alpha_vals,2725*np.cos(0.98*np.pi+alpha_vals))
-    #         #
-    #         #
-    #         #ax.set_xlim(-np.pi,2.*np.pi)
-    #         # ax.set_ylim(-3000,3000)
-    #         ax.set_xlabel("$\\alpha$")
-    #         ax.set_ylabel("$v_k\;\;[{\\rm km/s}]$")
-    #
-    #         # ax.set_ylabel("$\mathbf{v}(t)\cdot \hat\mathbf{z} \;\;[{\\rm km/s}]$")
-    #         ax.set_xticks([-np.pi,-np.pi/2,0,np.pi/2,np.pi])
-    #         ax.set_xticklabels(['$-\pi$','$-\pi/2$','$0$','$\pi/2$','$\pi$'])
-    #         #
-    #         ax.xaxis.set_minor_locator(AutoMinorLocator())
-    #         ax.yaxis.set_minor_locator(AutoMinorLocator())
-    #         #ax.legend(bbox_to_anchor=(1.05, 1),loc=2,bbox_transform=ax.transAxes, borderaxespad=0.)
-    #
-    #         ax.text(1.05,1,'$q='+str(round(q,2))+'$\n$\chi_1='+str(round(chi1m,2))+'$\n$\chi_2='+str(round(chi2m,2))+'$\n$\\theta_1='+str(round(theta1,2))+'$\n$\\theta_2='+str(round(theta2,2))+'$\n$\Delta\Phi='+str(round(deltaphi,2))+'$',verticalalignment='top',transform=ax.transAxes)
-    #
-    #         allfig.append(fig)
-    #     return allfig
-    #
-    #
-
     @classmethod
     def findlarge(self):
         '''Fig. FIX_PAPER_FIG of FIX_PAPER_REF'''
 
         dim=int(1e5)
-
         filename='findlarge.pkl'
         if not os.path.isfile(filename):
 
@@ -1454,7 +1256,6 @@ class plots(object):
 
         fig = plt.figure(figsize=(4,4))
         ax=fig.add_axes([0,0,0.7,0.7])
-
         ax.axhline(0,c='black',alpha=0.3,ls='dotted')
         ax.axhline(1,c='black',alpha=0.3,ls='dotted')
 
@@ -1464,7 +1265,6 @@ class plots(object):
 
             data=[]
             for i in tqdm(range(200)):
-
                 q=np.random.uniform(0.5,1)
                 phi = np.random.uniform(0,2*np.pi)
                 theta = np.arccos(np.random.uniform(-1,1))
@@ -1474,13 +1274,10 @@ class plots(object):
                 theta = np.arccos(np.random.uniform(-1,1))
                 r = 0.8*(np.random.uniform(0,1))**(1./3.)
                 chi2= [ r*np.sin(theta)*np.cos(phi), r*np.sin(theta)*np.sin(phi), r*np.cos(theta) ]
-
                 sk= surrkick(q=q,chi1=chi1,chi2=chi2)
-
                 phi = np.random.uniform(0,2*np.pi)
                 theta = np.arccos(np.random.uniform(-1,1))
                 randomdir= [np.sin(theta)*np.cos(phi), np.sin(theta)*np.sin(phi), np.cos(theta) ]
-
                 data.append([sk.kick, project(sk.voft/sk.kick,sk.kickdir)])
 
             with open(filename, 'wb') as f: pickle.dump(data, f)
@@ -1548,15 +1345,12 @@ class plots(object):
                 deltaphi = np.random.uniform(0,2*np.pi)
                 dummy,dummy,dummy,S1,S2=precession.get_fixed(q,chi1m,chi2m)
                 fk=precession.finalkick(theta1,theta2,deltaphi,q,S1,S2,maxkick=False,kms=False,more=False)
-
                 return [sk.Erad,sk.kick,sk.Jrad,fk]
 
             print("Running in parallel on", multiprocessing.cpu_count(),"cores. Storing data:", filename)
             parmap = pathos.multiprocessing.ProcessingPool(multiprocessing.cpu_count()).imap
             #data= list(tqdm(parmap(_explore, range(dim)),total=dim))
             data= map(_explore, range(dim))
-
-
 
             with open(filename, 'wb') as f: pickle.dump(zip(*data), f)
         with open(filename, 'rb') as f: Erad,kicks,Jrad,fk = pickle.load(f)
@@ -1624,13 +1418,11 @@ class plots(object):
             theta = np.arccos(np.random.uniform(-1,1))
             r = 0.8*(np.random.uniform(0,1))**(1./3.)
             chi2= [ r*np.sin(theta)*np.cos(phi), r*np.sin(theta)*np.sin(phi), r*np.cos(theta) ]
-
-
             sk= surrkick(q=q,chi1=chi1,chi2=chi2)
+
             t0=time.time()
             sk.hsample
             tsur=time.time()-t0
-
 
             t0=time.time()
             sk.kick
@@ -1640,62 +1432,13 @@ class plots(object):
             sk=surrkick(q=q,chi1=chi1,chi2=chi2).kick
             tall=time.time()-t0
 
-
             timessur.append(tsur)
             timeskick.append(tkick)
             timesall.append(tall)
 
-
         print("Time, surrogate waveform:", np.mean(timessur),'s')
         print("Time, kick:", np.mean(timeskick),'s')
         print("Time, both:", np.mean(timesall),'s')
-
-    @classmethod
-    @plottingstuff
-    def check(self):
-        L=0.7
-        H=0.3
-        S=0.05
-        Z=0.35
-
-        fig = plt.figure(figsize=(6,6))
-        ax = [fig.add_axes([0,-i*(S+H),L,H]) for i in [0,1,2,3]]
-
-
-        #tnew=np.linspace(-4500,100,10)
-        tnew=np.linspace(-4500,100,4601)
-
-        tnew=np.append(tnew,np.ones(10)*tnew[-1])
-
-        q=0.5
-        chi1=[0.8,0,0]
-        chi2=[-0.8,0,0]
-
-        sk = surrkick(q=q , chi1=chi1,chi2=chi2)
-        x0,y0,z0=sk.xoft[sk.times==min(abs(sk.times))][0]
-        x,y,z=np.transpose(sk.xoft)
-        xnew=spline(sk.times,x)(tnew)
-        ynew=spline(sk.times,y)(tnew)
-        znew=spline(sk.times,z)(tnew)
-
-        # ax[0].plot(sk.times,x)
-        # ax[0].plot(tnew,xnew)
-        #
-        # ax[1].plot(sk.times,y)
-        # ax[1].plot(tnew,ynew)
-        # ax[2].plot(sk.times,z)
-        # ax[2].plot(tnew,znew)
-
-        ax[0].plot(sk.times,sk.voft[:,0])
-        ax[1].plot(sk.times,sk.voft[:,1])
-        ax[2].plot(sk.times,sk.voft[:,2])
-
-
-
-        for axx in ax:
-            axx.set_xlim(-10,70)
-
-        return fig
 
 
     @classmethod
@@ -1708,10 +1451,7 @@ class plots(object):
         fig = plt.figure(figsize=(6,6))
         ax = [fig.add_axes([0,-i*(S+H),L,H]) for i in [0,1,2]]
 
-
-
         dim=int(1e4)
-
         filename='symmetry.pkl'
         if not os.path.isfile(filename):
 
@@ -1741,37 +1481,28 @@ class plots(object):
                 chi2 = [-chi1[0],-chi1[1],chi1[2]]
                 kicks[2].append(np.linalg.norm(np.cross(surrkick(q=q,chi1=chi1,chi2=chi2).kickcomp,[0,0,1])))
 
-
             print("Storing datxa:", filename)
 
             with open(filename, 'wb') as f: pickle.dump(kicks, f)
         with open(filename, 'rb') as f: kicks = pickle.load(f)
 
-
         nbins=100
         for axx,kick in zip(ax,kicks):
-
             axx.hist(1/0.001*np.abs(kick),bins=nbins,histtype='step',lw=2,alpha=1,color='C4',normed=True)
             axx.hist(1/0.001*np.abs(kick),bins=nbins,histtype='stepfilled',alpha=0.3,color='C4',normed=True)
-
             print(np.percentile(1/0.001*np.abs(kick), 50),np.percentile(1/0.001*np.abs(kick), 90))
             axx.axvline(np.percentile(1/0.001*np.abs(kick), 50),c='gray',ls='dashed')
             axx.axvline(np.percentile(1/0.001*np.abs(kick), 90),c='gray',ls='dotted')
 
-
         ax[0].set_xlabel("$v_k \;\;[0.001c]$")
         ax[1].set_xlabel("$|\mathbf{v_k}\cdot \mathbf{\hat z}| \;\;[0.001c]$")
         ax[2].set_xlabel("$|\mathbf{v_k}\\times \mathbf{\hat z}| \;\;[0.001c]$")
-
         ax[0].text(0.5,0.9,'$q=1$\n$\\boldsymbol{\\chi_1}=\\boldsymbol{\\chi_2}$\n$\longrightarrow v_k=0$',verticalalignment='top', transform=ax[0].transAxes,linespacing=1.6)
         ax[1].text(0.5,0.9,'${\\rm Generic}\; q$\n$\\boldsymbol{\\chi_1}\\times \mathbf{\hat z} = \\boldsymbol{\\chi_2}\\times \mathbf{\hat z}=0$\n$\longrightarrow \mathbf{v_k}\cdot\mathbf{\hat z}=0$',verticalalignment='top',transform=ax[1].transAxes,linespacing=1.6)
         ax[2].text(0.5,0.9,'$q=1$\n$\\boldsymbol{\\chi_1}\\cdot \mathbf{\hat z}=\\boldsymbol{\\chi_2}\\cdot \mathbf{\hat z}$\n$\\boldsymbol{\\chi_1}\\times \mathbf{\hat z} = -\\boldsymbol{\\chi_2}\\times \mathbf{\hat z}$\n$\longrightarrow \mathbf{v_k}\\times\mathbf{\hat z}=0$',verticalalignment='top',transform=ax[2].transAxes,linespacing=1.6)
-
         for axx in ax:
             axx.xaxis.set_minor_locator(AutoMinorLocator())
             axx.yaxis.set_minor_locator(AutoMinorLocator())
-
-
 
         return fig
 
