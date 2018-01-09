@@ -448,7 +448,7 @@ class plots(object):
             print("Plotting:", function.__name__+".pdf")
 
             # Before function call
-            global plt,AutoMinorLocator,MultipleLocator
+            global plt,AutoMinorLocator,MultipleLocator,LogLocator,NullFormatter
             from matplotlib import use #Useful when working on SSH
             use('Agg')
             from matplotlib import rc
@@ -465,7 +465,7 @@ class plots(object):
             import matplotlib.pyplot as plt
             from mpl_toolkits.mplot3d import Axes3D
             from matplotlib.backends.backend_pdf import PdfPages
-            from matplotlib.ticker import AutoMinorLocator,MultipleLocator
+            from matplotlib.ticker import AutoMinorLocator,MultipleLocator,LogLocator,NullFormatter
             pp= PdfPages(function.__name__+".pdf")
 
             fig = function(self)
@@ -1507,6 +1507,82 @@ class plots(object):
         return fig
 
 
+    @classmethod
+    @plottingstuff
+    def nr_comparison_histograms(self):
+
+        fig = plt.figure(figsize=(6,6))
+        ax = fig.add_axes([0,0,0.7,0.5])
+
+        nr100 = np.loadtxt("../nr_comparison_data/nr_kicks_t100.dat")
+        nr4500 = np.loadtxt("../nr_comparison_data/nr_kicks_t4500.dat")
+
+        def _nr_surr_comparison_data_helper(nr_data, t):
+            kicks = []
+            for d in nr_data:
+                q = d[2]
+                chi1 = [d[3], d[4], d[5]]
+                chi2 = [d[6], d[7], d[8]]
+                kicks.append(surrkick(q=q, chi1=chi1, chi2=chi2, t_ref=t).kick)
+            return np.array(kicks)
+
+        filename='nr_comparison_kicks_t100.pkl'
+        if not os.path.isfile(filename):
+            surr_kicks = _nr_surr_comparison_data_helper(nr100, -100)
+            print("Storing data:", filename)
+            with open(filename, 'wb') as f: pickle.dump(surr_kicks, f)
+        with open(filename, 'rb') as f: surr100 = pickle.load(f)
+
+        filename='nr_comparison_kicks_t4500.pkl'
+        if not os.path.isfile(filename):
+            surr_kicks = _nr_surr_comparison_data_helper(nr4500, -4500)
+            print("Storing data:", filename)
+            with open(filename, 'wb') as f: pickle.dump(surr_kicks, f)
+        with open(filename, 'rb') as f: surr4500 = pickle.load(f)
+
+        mag_nr = nr4500[:,12] / 0.001
+        mag_nr_lev2 = nr4500[:,16] / 0.001
+        mag_nr_lmax4 = nr4500[:,20] / 0.001
+        mag_surr = surr4500[:] / 0.001
+        mag_surr_t100 = surr100[:] / 0.001
+        delta_nr_surr = np.fabs(mag_nr - mag_surr)
+        delta_nr_levs = np.fabs(mag_nr - mag_nr_lev2)
+        delta_nr_lmax = np.fabs(mag_nr - mag_nr_lmax4)
+        delta_surr_times = np.fabs(mag_surr - mag_surr_t100)
+
+        logbins = np.logspace(-6, 1.3, 65)
+        ax.hist(mag_nr, bins=logbins, histtype='stepfilled', alpha=0.6, label="NR")
+        ax.hist(mag_surr, bins=logbins, histtype='stepfilled', alpha=0.6, label="surr")
+        ax.hist(delta_nr_surr, bins=logbins, histtype='step', label="NR vs. surr")
+        ax.hist(delta_nr_levs, bins=logbins, histtype='step', label="NR lev 3 vs. 2")
+        ax.hist(delta_nr_lmax, bins=logbins, histtype='step', label="NR $l_{\mathrm{max}}$ 8 vs. 4")
+        ax.hist(delta_surr_times, bins=logbins, histtype='step', label="surr $t$ $-100$ vs. $-4500$")
+
+        # flip some curves for visual clarity (?)
+        #ax.plot([0,20], [0,0], color='k')
+        #n, b, patches = ax.hist(delta_nr_levs, bins=logbins, histtype='step', label="NR lev 3 vs. 2")
+        #for p in patches:
+        #    xy = p.get_xy()
+        #    xy[:,1] = -xy[:,1]
+        #    p.set_xy(xy)
+        #n, b, patches = ax.hist(delta_nr_lmax, bins=logbins, histtype='step', label="NR $l_{\mathrm{max}}$ 8 vs. 4")
+        #for p in patches:
+        #    xy = p.get_xy()
+        #    xy[:,1] = -xy[:,1]
+        #    p.set_xy(xy)
+        #ax.set_ylim(-100,150)
+
+        ax.legend(loc=2, ncol=2, fontsize=12)
+        ax.set_xscale("log")
+        ax.set_xlabel("$v_k\;\;[0.001c]$")
+        ax.set_ylim(0,125)
+        ax.yaxis.set_minor_locator(MultipleLocator(5))
+        ax.xaxis.set_major_locator(LogLocator(numticks=8))
+        ax.xaxis.set_minor_locator(LogLocator(numticks=8,subs=(0.1,0.2,0.3,0.4,0.5,0.6,0.7,0.8,0.9,)))
+        ax.xaxis.set_minor_formatter(NullFormatter())
+
+        return fig
+
 
 ########################################
 if __name__ == "__main__":
@@ -1537,3 +1613,5 @@ if __name__ == "__main__":
     #plots.explore()
     #plots.normprofiles()
     #plots.centerofmass()
+
+    #plots.nr_comparison_histograms()
