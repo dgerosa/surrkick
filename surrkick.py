@@ -17,6 +17,7 @@ import cPickle as pickle
 import multiprocessing, pathos.multiprocessing
 import precession
 import warnings
+import json
 
 __author__ = "Davide Gerosa"
 __email__ = "dgerosa@caltech.edu"
@@ -1669,6 +1670,65 @@ class plots(object):
         return fig
 
 
+    @classmethod
+    @plottingstuff
+    def nr_comparison_profiles(self):
+
+        w = 0.6
+        h = 0.45
+        gap = 0.1
+
+        fig = plt.figure(figsize=(6, 6))
+        ax_ll = fig.add_axes([0, 0, w, h])
+        ax_lr = fig.add_axes([w + gap, 0, w, h])
+        ax_ur = fig.add_axes([w + gap, h + gap, w, h])
+        ax_ul = fig.add_axes([0, h + gap, w, h])
+
+        # duplicated from histogram plot
+        basename = "../nr_comparison_data/profile_case_id_"
+        cases = ["0021", "0283", "0353", "3144"]
+        filename = "nr_comparison_profiles.pkl"
+        if not os.path.isfile(filename):
+            surr_profiles = {}
+            for case in cases:
+                with open(basename+case+"/params.json", 'r') as f:
+                    p = json.load(f)
+                    q = p["relaxed-q"]
+                    chi1 = p["surrogate-dimensionless-spin1"]
+                    chi2 = p["surrogate-dimensionless-spin2"]
+                    sk = surrkick(q=q, chi1=chi1, chi2=chi2, t_ref=-4500)
+                    ts = sk.times
+                    ps = sk.Poft
+                    ns = sk.kickdir
+                    kns = - (ns[0]*ps[:,0] + ns[1]*ps[:,1] + ns[2]*ps[:,2])
+                    surr_profiles[case] = [ts, kns]
+            print("Storing data:", filename)
+            with open(filename, 'wb') as f: pickle.dump(surr_profiles, f)
+        with open(filename, 'rb') as f: surr_data = pickle.load(f)
+
+        axes = [ax_ll, ax_lr, ax_ur, ax_ul]
+        for ax, case in zip(axes, cases):
+            nr_data = np.loadtxt(basename+case+"/radiated_p.dat")
+            t = nr_data[:,0]
+            kn = - nr_data[:,1] / 0.001
+            ts = surr_data[case][0]
+            kns = surr_data[case][1] / 0.001
+            ax.plot(t, kn, label = "NR")
+            ax.plot(ts, kns, label = "surr")
+            ax.text(0.05, 0.9, "Case: "+case, transform=ax.transAxes)
+            ax.set_xlim(-50, 50)
+            ax.xaxis.set_major_locator(MultipleLocator(20))
+            ax.xaxis.set_minor_locator(MultipleLocator(5))
+            ax.yaxis.set_minor_locator(AutoMinorLocator())
+
+        ax_ll.legend(loc = "center left")
+        ax_ll.set_xlabel("$t\;\;[M]$")
+        ax_lr.set_xlabel("$t\;\;[M]$")
+        ax_ll.set_ylabel("$\mathbf{v}(t) \cdot \mathbf{\hat v_k} \;\;[0.001c]$")
+        ax_ul.set_ylabel("$\mathbf{v}(t) \cdot \mathbf{\hat v_k} \;\;[0.001c]$")
+
+        return fig
+
 ########################################
 if __name__ == "__main__":
     pass
@@ -1701,3 +1761,4 @@ if __name__ == "__main__":
 
     #plots.nr_comparison_histograms()
     #plots.nr_comparison_scatter()
+    #plots.nr_comparison_profiles()
