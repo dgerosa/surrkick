@@ -1584,6 +1584,91 @@ class plots(object):
         return fig
 
 
+    @classmethod
+    @plottingstuff
+    def nr_comparison_scatter(self):
+
+        main_w = 0.6
+        main_h = 0.6
+        hist_h = 0.15
+        gap = 0.05
+
+        fig = plt.figure(figsize=(6, 6))
+        ax = fig.add_axes([0, 0, main_w, main_h])
+        axt = fig.add_axes([0, main_h + gap, main_w, hist_h])
+        axr = fig.add_axes([main_w + gap, 0, hist_h, main_h])
+
+        nr4500 = np.loadtxt("../nr_comparison_data/nr_kicks_t4500.dat")
+
+        # duplicated from histogram plot
+        def _nr_surr_comparison_data_helper(nr_data, t):
+            kicks = []
+            for d in nr_data:
+                q = d[2]
+                chi1 = [d[3], d[4], d[5]]
+                chi2 = [d[6], d[7], d[8]]
+                kicks.append(surrkick(q=q, chi1=chi1, chi2=chi2, t_ref=t).kick)
+            return np.array(kicks)
+
+        # duplicated from histogram plot
+        filename='nr_comparison_kicks_t4500.pkl'
+        if not os.path.isfile(filename):
+            surr_kicks = _nr_surr_comparison_data_helper(nr4500, -4500)
+            print("Storing data:", filename)
+            with open(filename, 'wb') as f: pickle.dump(surr_kicks, f)
+        with open(filename, 'rb') as f: surr4500 = pickle.load(f)
+
+        mag_nr = nr4500[:,12] / 0.001
+        mag_surr = surr4500[:] / 0.001
+        diff = np.fabs(mag_nr - mag_surr)
+        perc50 = np.percentile(diff, 50)
+        perc90 = np.percentile(diff, 90)
+        print("  50th percentile of kick magnitude diffs [0.001c]:", perc50)
+        print("  90th percentile of kick magnitude diffs [0.001c]:", perc90)
+        x = np.array([0,1e4])
+        y = np.array([0,1e4])
+        y_p50 = y + perc50
+        y_m50 = y - perc50
+        y_p90 = y + perc90
+        y_m90 = y - perc90
+
+        ax.plot(x, y_p50, lw=0.5, ls='dashed', c='gray')
+        ax.plot(x, y_m50, lw=0.5, ls='dashed', c='gray')
+        ax.plot(x, y_p90, lw=0.5, ls='dotted', c='gray')
+        ax.plot(x, y_m90, lw=0.5, ls='dotted', c='gray')
+        ax.scatter(mag_nr, mag_surr, s=10, alpha=0.5, edgecolors='none')
+
+        ax.set_xlim(0,10)
+        ax.set_ylim(0,10)
+        ax.set_xlabel("NR kick $[0.001c]$")
+        ax.set_ylabel("Surrogate kick $[0.001c]$")
+        ax.xaxis.set_major_locator(MultipleLocator(2))
+        ax.xaxis.set_minor_locator(MultipleLocator(0.5))
+        ax.yaxis.set_major_locator(MultipleLocator(2))
+        ax.yaxis.set_minor_locator(MultipleLocator(0.5))
+
+        bins = np.linspace(0, 10, 41)
+        axt.hist(mag_nr, bins=bins, histtype='stepfilled')
+        axt.set_xlim(0,10)
+        axt.set_ylim(0,80)
+        axt.axes.xaxis.set_ticklabels([])
+        axt.xaxis.set_major_locator(MultipleLocator(2))
+        axt.xaxis.set_minor_locator(MultipleLocator(0.5))
+        axt.yaxis.set_major_locator(MultipleLocator(40))
+        axt.yaxis.set_minor_locator(MultipleLocator(10))
+
+        axr.hist(mag_surr, bins=bins, histtype='stepfilled', orientation='horizontal')
+        axr.set_xlim(0,80)
+        axr.set_ylim(0,10)
+        axr.axes.yaxis.set_ticklabels([])
+        axr.xaxis.set_major_locator(MultipleLocator(40))
+        axr.xaxis.set_minor_locator(MultipleLocator(10))
+        axr.yaxis.set_major_locator(MultipleLocator(2))
+        axr.yaxis.set_minor_locator(MultipleLocator(0.5))
+
+        return fig
+
+
 ########################################
 if __name__ == "__main__":
     pass
@@ -1615,3 +1700,4 @@ if __name__ == "__main__":
     #plots.centerofmass()
 
     #plots.nr_comparison_histograms()
+    #plots.nr_comparison_scatter()
