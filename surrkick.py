@@ -1639,6 +1639,13 @@ class plots(object):
         ax.plot(x, y_m90, lw=0.5, ls='dotted', c='gray')
         ax.scatter(mag_nr, mag_surr, s=10, alpha=0.5, edgecolors='none')
 
+        cases = ["0021", "0283", "0353", "3144"]
+        case_indices = [np.where(nr4500[:,0] == int(case)) for case in cases]
+        print(case_indices)
+        highlight_nr = [mag_nr[case] for case in case_indices]
+        highlight_surr = [mag_surr[case] for case in case_indices]
+        ax.scatter(highlight_nr, highlight_surr, s=12, alpha=1, edgecolors='none')
+
         ax.set_xlim(0,10)
         ax.set_ylim(0,10)
         ax.set_xlabel("NR kick $[0.001c]$")
