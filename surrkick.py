@@ -1688,7 +1688,7 @@ class plots(object):
     @plottingstuff
     def nr_comparison_profiles(self):
 
-        w = 0.6
+        w = 0.8
         h = 0.45
         gap = 0.1
 
@@ -1727,15 +1727,26 @@ class plots(object):
             kn = - nr_data[:,1] / 0.001
             ts = surr_data[case][0]
             kns = surr_data[case][1] / 0.001
-            ax.plot(t, kn, label = "NR")
-            ax.plot(ts, kns, label = "surr")
-            ax.text(0.05, 0.9, "Case: "+case, transform=ax.transAxes)
+            ax.plot(t, kn, label = "NR",lw=2, color='C3',dashes=[8,4])
+            ax.plot(ts, kns, label = "Surrogate",lw=2,color='C0')
+
+
+            with open(basename+case+"/params.json", 'r') as f:
+                p = json.load(f)
+                q = p["relaxed-q"]
+                q=min(q,1./q)
+                chi1 = p["surrogate-dimensionless-spin1"]
+                chi2 = p["surrogate-dimensionless-spin2"]
+
+            label= "SXS:"+case+"\n"+'$q\simeq'+str(round(q,3) if round(q,3)!=1 else 1)+'$\n$\\boldsymbol{\\chi_1}\simeq'+str([round(x,3) if round(x,3)!=0 else 0 for x in chi1])+'$\n$\\boldsymbol{\\chi_2}\simeq'+str([round(x,3) if round(x,3)!=0 else 0 for x in chi2])+'$'
+            ax.text(0.05, 0.95, label, verticalalignment='top',fontsize=14,transform=ax.transAxes)
+
             ax.set_xlim(-50, 50)
             ax.xaxis.set_major_locator(MultipleLocator(20))
             ax.xaxis.set_minor_locator(MultipleLocator(5))
             ax.yaxis.set_minor_locator(AutoMinorLocator())
 
-        ax_ll.legend(loc = "center left")
+        ax_ul.legend(loc = "lower right")
         ax_ll.set_xlabel("$t\;\;[M]$")
         ax_lr.set_xlabel("$t\;\;[M]$")
         ax_ll.set_ylabel("$\mathbf{v}(t) \cdot \mathbf{\hat v_k} \;\;[0.001c]$")
@@ -1774,5 +1785,5 @@ if __name__ == "__main__":
     #plots.centerofmass()
 
     #plots.nr_comparison_histograms()
-    plots.nr_comparison_scatter()
-    #plots.nr_comparison_profiles()
+    #plots.nr_comparison_scatter()
+    plots.nr_comparison_profiles()
