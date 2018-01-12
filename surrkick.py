@@ -1595,7 +1595,7 @@ class plots(object):
         main_w = 0.6
         main_h = 0.6
         hist_h = 0.15
-        gap = 0.05
+        gap = 0.04
 
         fig = plt.figure(figsize=(6, 6))
         ax = fig.add_axes([0, 0, main_w, main_h])
@@ -1636,30 +1636,33 @@ class plots(object):
         y_p90 = y + perc90
         y_m90 = y - perc90
 
-        ax.plot(x, y_p50, lw=0.5, ls='dashed', c='gray')
-        ax.plot(x, y_m50, lw=0.5, ls='dashed', c='gray')
-        ax.plot(x, y_p90, lw=0.5, ls='dotted', c='gray')
-        ax.plot(x, y_m90, lw=0.5, ls='dotted', c='gray')
-        ax.scatter(mag_nr, mag_surr, s=10, alpha=0.5, edgecolors='none')
+        ax.plot(x, y_p50, lw=0.5, dashes=[10,5], c='black',alpha=0.9)
+        ax.plot(x, y_m50, lw=0.5, dashes=[10,5], c='black',alpha=0.9)
+        ax.plot(x, y_p90, lw=0.5, ls='dotted', c='black',alpha=0.9)
+        ax.plot(x, y_m90, lw=0.5, ls='dotted', c='black',alpha=0.9)
+        ax.scatter(mag_nr, mag_surr, s=15, alpha=0.1, facecolor='C0',edgecolor="none")
+        ax.scatter(mag_nr, mag_surr, s=15, alpha=0.5, facecolor='none',edgecolor='C0')
+
+
 
         cases = ["0021", "0283", "0353", "3144"]
         case_indices = [np.where(nr4500[:,0] == int(case)) for case in cases]
-        print(case_indices)
         highlight_nr = [mag_nr[case] for case in case_indices]
         highlight_surr = [mag_surr[case] for case in case_indices]
-        ax.scatter(highlight_nr, highlight_surr, s=12, alpha=1, edgecolors='none')
+        ax.scatter(highlight_nr, highlight_surr, marker='x',s=25, alpha=1,color='C3')
 
         ax.set_xlim(0,10)
         ax.set_ylim(0,10)
-        ax.set_xlabel("NR kick $[0.001c]$")
-        ax.set_ylabel("Surrogate kick $[0.001c]$")
+        ax.set_xlabel("NR $v_k\;[0.001c]$")
+        ax.set_ylabel("Surrogate $v_k\;[0.001c]$")
         ax.xaxis.set_major_locator(MultipleLocator(2))
         ax.xaxis.set_minor_locator(MultipleLocator(0.5))
         ax.yaxis.set_major_locator(MultipleLocator(2))
         ax.yaxis.set_minor_locator(MultipleLocator(0.5))
 
-        bins = np.linspace(0, 10, 41)
-        axt.hist(mag_nr, bins=bins, histtype='stepfilled')
+        bins = np.linspace(0, 10, 36)
+        axt.hist(mag_nr, bins=bins, histtype='stepfilled',alpha=0.4,color='C0')
+        axt.hist(mag_nr, bins=bins, histtype='step',color='C0')
         axt.set_xlim(0,10)
         axt.set_ylim(0,80)
         axt.axes.xaxis.set_ticklabels([])
@@ -1668,7 +1671,8 @@ class plots(object):
         axt.yaxis.set_major_locator(MultipleLocator(40))
         axt.yaxis.set_minor_locator(MultipleLocator(10))
 
-        axr.hist(mag_surr, bins=bins, histtype='stepfilled', orientation='horizontal')
+        axr.hist(mag_surr, bins=bins, histtype='stepfilled', orientation='horizontal',alpha=0.4,color='C0')
+        axr.hist(mag_surr, bins=bins, histtype='step', orientation='horizontal',color='C0')
         axr.set_xlim(0,80)
         axr.set_ylim(0,10)
         axr.axes.yaxis.set_ticklabels([])
@@ -1769,6 +1773,6 @@ if __name__ == "__main__":
     #plots.normprofiles()
     #plots.centerofmass()
 
-    plots.nr_comparison_histograms()
-    #plots.nr_comparison_scatter()
+    #plots.nr_comparison_histograms()
+    plots.nr_comparison_scatter()
     #plots.nr_comparison_profiles()
