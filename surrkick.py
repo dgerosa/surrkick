@@ -1513,7 +1513,7 @@ class plots(object):
     def nr_comparison_histograms(self):
 
         fig = plt.figure(figsize=(6,6))
-        ax = fig.add_axes([0,0,0.7,0.5])
+        ax = fig.add_axes([0,0,0.75,0.7])
 
         nr100 = np.loadtxt("../nr_comparison_data/nr_kicks_t100.dat")
         nr4500 = np.loadtxt("../nr_comparison_data/nr_kicks_t4500.dat")
@@ -1529,15 +1529,15 @@ class plots(object):
 
         filename='nr_comparison_kicks_t100.pkl'
         if not os.path.isfile(filename):
-            surr_kicks = _nr_surr_comparison_data_helper(nr100, -100)
             print("Storing data:", filename)
+            surr_kicks = _nr_surr_comparison_data_helper(nr100, -100)
             with open(filename, 'wb') as f: pickle.dump(surr_kicks, f)
         with open(filename, 'rb') as f: surr100 = pickle.load(f)
 
         filename='nr_comparison_kicks_t4500.pkl'
         if not os.path.isfile(filename):
-            surr_kicks = _nr_surr_comparison_data_helper(nr4500, -4500)
             print("Storing data:", filename)
+            surr_kicks = _nr_surr_comparison_data_helper(nr4500, -4500)
             with open(filename, 'wb') as f: pickle.dump(surr_kicks, f)
         with open(filename, 'rb') as f: surr4500 = pickle.load(f)
 
@@ -1551,13 +1551,15 @@ class plots(object):
         delta_nr_lmax = np.fabs(mag_nr - mag_nr_lmax4)
         delta_surr_times = np.fabs(mag_surr - mag_surr_t100)
 
-        logbins = np.logspace(-6, 1.3, 65)
-        ax.hist(mag_nr, bins=logbins, histtype='stepfilled', alpha=0.6, label="NR")
-        ax.hist(mag_surr, bins=logbins, histtype='stepfilled', alpha=0.6, label="surr")
-        ax.hist(delta_nr_surr, bins=logbins, histtype='step', label="NR vs. surr")
-        ax.hist(delta_nr_levs, bins=logbins, histtype='step', label="NR lev 3 vs. 2")
-        ax.hist(delta_nr_lmax, bins=logbins, histtype='step', label="NR $l_{\mathrm{max}}$ 8 vs. 4")
-        ax.hist(delta_surr_times, bins=logbins, histtype='step', label="surr $t$ $-100$ vs. $-4500$")
+        logbins = np.logspace(-6, 1.3, 50)
+        ax.hist(mag_nr, bins=logbins, histtype='stepfilled', alpha=0.6, label="$v_k$ NR", color='C3',lw=2)
+        ax.hist(mag_surr, bins=logbins, histtype='stepfilled', alpha=0.6, label="$v_k$ Surrogate", color='C0')
+        ax.hist(mag_nr, bins=logbins, histtype='step', alpha=0.8,color='C3')
+        ax.hist(mag_surr, bins=logbins, histtype='step',alpha=0.8, color='C0')
+        ax.hist(delta_nr_surr, bins=logbins, histtype='step', label="$\Delta v_k$ NR vs. Surrogate",color='black',ls='dashed',lw=1.5,zorder=20)
+        ax.hist(delta_nr_levs, bins=logbins, histtype='step', label="$\Delta v_k$ NR resolution", color='C1')
+        ax.hist(delta_surr_times, bins=logbins, histtype='step', label="$\Delta v_k$ Surr $t_{\\rm ref}/M\!=\!-100$ vs.  $\!-4500$",color='C2')
+        ax.hist(delta_nr_lmax, bins=logbins, histtype='step', label="$\Delta v_k$ NR $l_{\\rm max}\!=\!8$ vs. $4$",color='C4')
 
         # flip some curves for visual clarity (?)
         #ax.plot([0,20], [0,0], color='k')
@@ -1573,10 +1575,10 @@ class plots(object):
         #    p.set_xy(xy)
         #ax.set_ylim(-100,150)
 
-        ax.legend(loc=2, ncol=2, fontsize=12)
+        ax.legend(loc=2, ncol=1, fontsize=11)
         ax.set_xscale("log")
         ax.set_xlabel("$v_k\;\;[0.001c]$")
-        ax.set_ylim(0,125)
+        ax.set_ylim(0,120)
         ax.yaxis.set_minor_locator(MultipleLocator(5))
         ax.xaxis.set_major_locator(LogLocator(numticks=8))
         ax.xaxis.set_minor_locator(LogLocator(numticks=8,subs=(0.1,0.2,0.3,0.4,0.5,0.6,0.7,0.8,0.9,)))
@@ -1747,7 +1749,7 @@ if __name__ == "__main__":
     #plots.recoil()
 
     #print(surrkick().kick)
-    plots.alphaseries()
+    #plots.alphaseries()
     #plots.nospinprofiles()
     #plots.leftright()
 
@@ -1766,6 +1768,6 @@ if __name__ == "__main__":
     #plots.normprofiles()
     #plots.centerofmass()
 
-    #plots.nr_comparison_histograms()
+    plots.nr_comparison_histograms()
     #plots.nr_comparison_scatter()
     #plots.nr_comparison_profiles()
