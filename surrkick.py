@@ -1513,7 +1513,7 @@ class plots(object):
     def nr_comparison_histograms(self):
 
         fig = plt.figure(figsize=(6,6))
-        ax = fig.add_axes([0,0,0.75,0.7])
+        ax = fig.add_axes([0,0,1.25,0.6])
 
         nr100 = np.loadtxt("../nr_comparison_data/nr_kicks_t100.dat")
         nr4500 = np.loadtxt("../nr_comparison_data/nr_kicks_t4500.dat")
@@ -1552,14 +1552,15 @@ class plots(object):
         delta_surr_times = np.fabs(mag_surr - mag_surr_t100)
 
         logbins = np.logspace(-6, 1.3, 50)
-        ax.hist(mag_nr, bins=logbins, histtype='stepfilled', alpha=0.6, label="$v_k$ NR", color='C3',lw=2)
+        ax.hist(mag_nr, bins=logbins, histtype='stepfilled', alpha=0.6, label="$v_k$ NR", color='C3')
         ax.hist(mag_surr, bins=logbins, histtype='stepfilled', alpha=0.6, label="$v_k$ Surrogate", color='C0')
-        ax.hist(mag_nr, bins=logbins, histtype='step', alpha=0.8,color='C3')
-        ax.hist(mag_surr, bins=logbins, histtype='step',alpha=0.8, color='C0')
-        ax.hist(delta_nr_surr, bins=logbins, histtype='step', label="$\Delta v_k$ NR vs. Surrogate",color='black',ls='dashed',lw=1.5,zorder=20)
-        ax.hist(delta_nr_levs, bins=logbins, histtype='step', label="$\Delta v_k$ NR resolution", color='C1')
-        ax.hist(delta_surr_times, bins=logbins, histtype='step', label="$\Delta v_k$ Surr $t_{\\rm ref}/M\!=\!-100$ vs.  $\!-4500$",color='C2')
-        ax.hist(delta_nr_lmax, bins=logbins, histtype='step', label="$\Delta v_k$ NR $l_{\\rm max}\!=\!8$ vs. $4$",color='C4')
+        ax.hist(mag_nr, bins=logbins, histtype='step', alpha=0.8,color='C3',lw=1.8)
+        ax.hist(mag_surr, bins=logbins, histtype='step',alpha=0.8, color='C0',lw=1.8)
+        ax.hist(delta_nr_surr, bins=logbins, histtype='step', label="$\Delta v_k$ NR vs. Surrogate",color='black',ls='dashed',lw=2,zorder=20)
+        print(np.percentile(delta_nr_surr, 90))
+        ax.hist(delta_nr_levs, bins=logbins, histtype='step', label="$\Delta v_k$ NR resolution", color='C1',lw=1.8)
+        ax.hist(delta_surr_times, bins=logbins, histtype='step', label="$\Delta v_k$ Surr $t_{\\rm ref}/M\!=\!-100$ vs.  $\!-4500$",color='C2',lw=1.8)
+        ax.hist(delta_nr_lmax, bins=logbins, histtype='step', label="$\Delta v_k$ NR $l_{\\rm max}\!=\!8$ vs. $4$",color='C4',lw=1.8)
 
         # flip some curves for visual clarity (?)
         #ax.plot([0,20], [0,0], color='k')
@@ -1575,7 +1576,7 @@ class plots(object):
         #    p.set_xy(xy)
         #ax.set_ylim(-100,150)
 
-        ax.legend(loc=2, ncol=1, fontsize=11)
+        ax.legend(loc=2, ncol=1, fontsize=14).set_zorder(100)
         ax.set_xscale("log")
         ax.set_xlabel("$v_k\;\;[0.001c]$")
         ax.set_ylim(0,120)
