@@ -1740,12 +1740,13 @@ class plots(object):
 
             with open(basename+case+"/params.json", 'r') as f:
                 p = json.load(f)
+                sxs_id = str(p["SXS:BBH:ID"])
                 q = p["relaxed-q"]
                 q=min(q,1./q)
                 chi1 = p["surrogate-dimensionless-spin1"]
                 chi2 = p["surrogate-dimensionless-spin2"]
 
-            label= "SXS:"+case+"\n"+'$q\simeq'+str(round(q,3) if round(q,3)!=1 else 1)+'$\n$\\boldsymbol{\\chi_1}\simeq'+str([round(x,3) if round(x,3)!=0 else 0 for x in chi1])+'$\n$\\boldsymbol{\\chi_2}\simeq'+str([round(x,3) if round(x,3)!=0 else 0 for x in chi2])+'$'
+            label= "SXS:"+sxs_id+"\n"+'$q\simeq'+str(round(q,3) if round(q,3)!=1 else 1)+'$\n$\\boldsymbol{\\chi_1}\simeq'+str([round(x,3) if round(x,3)!=0 else 0 for x in chi1])+'$\n$\\boldsymbol{\\chi_2}\simeq'+str([round(x,3) if round(x,3)!=0 else 0 for x in chi2])+'$'
             ax.text(0.05, 0.95, label, verticalalignment='top',fontsize=14,transform=ax.transAxes)
 
             ax.set_xlim(-50, 50)
