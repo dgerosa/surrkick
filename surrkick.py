@@ -49,7 +49,6 @@ class summodes(object):
         '''Double mode sum: Sum_{l1,m1} Sum_{l2,m2}  with 0<=l1,l2<=lmax and -l<=m<=l. Returns a list of (l1,m1,l2,m2) tuples.
         Usage: iterations=surrkick.summodes.double(lmax)'''
 
-
         iterations=[]
         for l1 in np.arange(2,lmax+1):
             for m1 in np.arange(-l1,l1+1):
@@ -58,7 +57,6 @@ class summodes(object):
                         iterations.append((l1,m1,l2,m2))
 
         return iterations
-
 
 
 class convert(object):
@@ -77,6 +75,7 @@ class convert(object):
         Usage: vnat=surrkick.convert.cisone(vkms)'''
 
         return x / 299792.458
+
 
 @singleton
 class surrogate(object):
@@ -152,7 +151,6 @@ class surrkick(object):
         self._Jrad = None
         self._xoft = None
 
-
     class coeffs(object):
         '''Coefficients of the momentum expression, from Eqs. (3.16-3.19,3.25) of arXiv:0707.4654. All are defined as static methods and can be called with, e.g., surrkick.surrkick().self.coeffs.a(l,m).'''
 
@@ -190,9 +188,6 @@ class surrkick(object):
             Usage: `f=surrkick.coeffs.f(l,m)`'''
 
             return  ( l*(l+1) - m*(m+1) )**0.5
-
-
-
 
     @property
     def hsample(self):
@@ -236,7 +231,6 @@ class surrkick(object):
 
             # Derivatives with finite differencing
             #self._hdotsample = {k: np.gradient(v,edge_order=2)/np.gradient(self.times,edge_order=2) for k, v in self.hsample.items()}
-
 
         return self._hdotsample
 
@@ -394,7 +388,6 @@ class surrkick(object):
             dJydt=dJydt.real
             dJzdt=dJzdt.imag
 
-
             self._dJdt = np.transpose([dJxdt,dJydt,dJzdt])
 
         return self._dJdt
@@ -431,7 +424,6 @@ class surrkick(object):
             origin=[0,0,0]
             self._xoft = np.transpose([spline(self.times,v).antiderivative()(self.times)-vo*self.times  for v,vo in zip(np.transpose(self.voft),origin)])
         return self._xoft
-
 
 
 def project(timeseries,direction):
@@ -489,14 +481,12 @@ class plots(object):
             pp.close()
         return wrapper
 
-
     def animate(function):
         '''Python decorator to handle animations, including defining all defaults and storing the final movie. Just add @animate to any methond of the plots class.'''
 
         #def wrapper(*args, **kw):
         def wrapper(self):
             print("Animation:", function.__name__+".mpg/h264")
-
 
             # Before function call
             global plt,AutoMinorLocator,MultipleLocator
@@ -564,18 +554,15 @@ class plots(object):
         plt.legend()
         plt.show()
 
-
     @classmethod
     @plottingstuff
     def nospinprofiles(self):
         '''Fig. 1. Kick profiles for non-spinning binaries.
         Usage: surrkick.plots.nospinprofiles()'''
 
-
         L=0.7
         H=0.3
         S=0.05
-
         figP = plt.figure(figsize=(6,6))
         axP = [figP.add_axes([0,-i*(S+H),L,H]) for i in [0,1,2,3]]
         figE = plt.figure(figsize=(6,6))
@@ -617,7 +604,6 @@ class plots(object):
 
         #return [figP,figE,figJ]
         return figP
-
 
     @classmethod
     @plottingstuff
@@ -761,19 +747,16 @@ class plots(object):
 
         return allfig
 
-
     @classmethod
     @animate
     def recoil(self):
         '''Animated version of Fig. 2. Center of mass trajectories.
         Usage: surrkick.plots.recoil()'''
 
-
         leftpanel,middlepanel,rightpanel=True,True,True
         #leftpanel,middlepanel,rightpanel=True,False,False
         #leftpanel,middlepanel,rightpanel=False,True,False
         #leftpanel,middlepanel,rightpanel=False,False,True
-
         allfig=[]
 
         tnew=np.linspace(-4500,100,4601)
@@ -953,8 +936,6 @@ class plots(object):
         else:
             allfig.append([None])
 
-
-
         return allfig
 
     @classmethod
@@ -1114,13 +1095,11 @@ class plots(object):
 
         return figs
 
-
     @classmethod
     @plottingstuff
     def alphaseries(self):
         '''Fig. 6. Degeneracy between the reference time and an overall spin rotation.
         Usage: surrkick.plots.alphaseries()'''
-
 
         fig = plt.figure(figsize=(6,6))
         L=0.7
@@ -1168,7 +1147,6 @@ class plots(object):
     def alphaprof(self):
         '''Fig. 7. Role of the orbital phase at merger.
         Usage: surrkick.plots.alphaprof()'''
-
 
         fig = plt.figure(figsize=(6,6))
         ax=fig.add_axes([0,0,0.7,0.3])
@@ -1234,8 +1212,6 @@ class plots(object):
         print("chi2=", chi2m, 'theta2=',np.degrees(np.arccos(chi2m[-1])))
         return []
 
-
-
     @classmethod
     @plottingstuff
     def lineofsight(self):
@@ -1275,7 +1251,6 @@ class plots(object):
         ax.set_ylabel("$\mathbf{v}(t) \cdot \mathbf{\hat n} \;\;[0.001c]$")
 
         return fig
-
 
     @classmethod
     @plottingstuff
@@ -1373,16 +1348,11 @@ class plots(object):
 
         return fig
 
-
-
-
     @classmethod
     @plottingstuff
     def normprofiles(self):
         '''Fig. 10. Shape of the kicks.
         Usage: surrkick.plots.normprofiles()'''
-
-
 
         levels = np.linspace(0,1.6,100)
         CS3 = plt.contourf([[0,0],[0,0]], levels, cmap=plt.cm.copper,extend='max')
@@ -1436,18 +1406,15 @@ class plots(object):
 
         return fig
 
-
     @classmethod
     @plottingstuff
     def symmetry(self):
         '''Fig. 11. Exploit symmetries to test accuracy.
         Usage: surrkick.plots.symmetry()'''
 
-
         L=0.7
         H=0.4
         S=0.15
-
         fig = plt.figure(figsize=(6,6))
         ax = [fig.add_axes([0,-i*(S+H),L,H]) for i in [0,1,2]]
 
@@ -1506,13 +1473,11 @@ class plots(object):
 
         return fig
 
-
     @classmethod
     @plottingstuff
     def nr_comparison_histograms(self):
         '''Fig. 12. Comparison with SPeC simulations, sources of error.
         Usage: surrkick.plots.nr_comparison_histograms()'''
-
 
         fig = plt.figure(figsize=(6,6))
         ax = fig.add_axes([0,0,1.25,0.6])
@@ -1589,7 +1554,6 @@ class plots(object):
 
         return fig
 
-
     @classmethod
     @plottingstuff
     def nr_comparison_scatter(self):
@@ -1647,8 +1611,6 @@ class plots(object):
         ax.scatter(mag_nr, mag_surr, s=15, alpha=0.1, facecolor='C0',edgecolor="none")
         ax.scatter(mag_nr, mag_surr, s=15, alpha=0.5, facecolor='none',edgecolor='C0')
 
-
-
         cases = ["0021", "0283", "0353", "3144"]
         case_indices = [np.where(nr4500[:,0] == int(case)) for case in cases]
         highlight_nr = [mag_nr[case] for case in case_indices]
@@ -1687,18 +1649,15 @@ class plots(object):
 
         return fig
 
-
     @classmethod
     @plottingstuff
     def nr_comparison_profiles(self):
         '''Fig. 14. Comparison with SPeC simulations, time profiles.
         Usage: surrkick.plots.nr_comparison_profiles()'''
 
-
         w = 0.8
         h = 0.45
         gap = 0.1
-
         fig = plt.figure(figsize=(6, 6))
         ax_ll = fig.add_axes([0, 0, w, h])
         ax_lr = fig.add_axes([w + gap, 0, w, h])
@@ -1737,7 +1696,6 @@ class plots(object):
             ax.plot(t, kn, label = "NR",lw=2, color='C3',dashes=[8,4])
             ax.plot(ts, kns, label = "Surrogate",lw=2,color='C0')
 
-
             with open(basename+case+"/params.json", 'r') as f:
                 p = json.load(f)
                 sxs_id = str(p["SXS:BBH:ID"])
@@ -1766,7 +1724,6 @@ class plots(object):
     def timing(self):
         '''Surrkick code performance (no plot)
         Usage: surrkick.plots.timing()'''
-
 
         dim=1000
         surrogate().sur() # Load the surrogate once for all
@@ -1808,37 +1765,6 @@ class plots(object):
         print("Time, both:", np.mean(timesall),'s')
 
 
-
 ########################################
 if __name__ == "__main__":
     pass
-    #plots.centerofmass()
-    #plots.symmetry()
-    #plots.findlarge()
-    #plots.explore()
-    #plots.spinaligned()
-    #plots.recoil()
-
-    #print(surrkick().kick)
-    #plots.alphaseries()
-    #plots.nospinprofiles()
-    #plots.leftright()
-
-    #plots.normprofiles()
-
-    #plots.hangupErad()
-    #t=surrkick().times
-    #print(t[1:]-t[:-1])
-    #plots.recoil()
-    #plots.check()
-    #plots.nospinprofiles()
-    #plots.findlarge()
-    #plots.timing()
-    #plots.recoil()
-    #plots.explore()
-    #plots.normprofiles()
-    #plots.centerofmass()
-
-    #plots.nr_comparison_histograms()
-    #plots.nr_comparison_scatter()
-    #plots.nr_comparison_profiles()
