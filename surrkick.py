@@ -60,45 +60,6 @@ class summodes(object):
         return iterations
 
 
-class coeffs(object):
-    '''Coefficients of the momentum expression, from Eqs. (3.16-3.19,3.25) of arXiv:0707.4654. All are defined as static methods and can be called with, e.g., coeffs.a(l,m).'''
-
-    @staticmethod
-    def a(l,m):
-        '''Eq. (3.16) of arXiv:0707.4654.
-        Usage: a=surrkick.coeffs.a(l,m)'''
-
-        return ( (l-m) * (l+m+1) )**0.5 / ( l * (l+1) )
-
-    @staticmethod
-    def b(l,m):
-        '''Eq. (3.17) of arXiv:0707.4654.
-        Usage: b=surrkick.coeffs.b(l,m)'''
-
-        return  ( 1/(2*l) ) *  ( ( (l-2) * (l+2) * (l+m) * (l+m-1) ) / ( (2*l-1) * (2*l+1) ))**0.5
-
-    @staticmethod
-    def c(l,m):
-        '''Eq. (3.18) of arXiv:0707.4654.
-        Usage: c=surrkick.coeffs.c(l,m)'''
-
-        return  2*m / ( l * (l+1) )
-
-    @staticmethod
-    def d(l,m):
-        '''Eq. (3.19) of arXiv:0707.4654.
-        Usage: d=surrkick.coeffs.d(l,m)'''
-
-        return  ( 1/l ) *  ( ( (l-2) * (l+2) * (l-m) * (l+m) ) / ( (2*l-1) * (2*l+1) ))**0.5
-
-    @staticmethod
-    def f(l,m):
-        '''Eq. (3.25) of arXiv:0707.4654.
-        Usage: `f=surrkick.coeffs.f(l,m)`'''
-
-        return  ( l*(l+1) - m*(m+1) )**0.5
-
-
 
 class convert(object):
     '''Utility class to convert units to other units.'''
@@ -190,6 +151,47 @@ class surrkick(object):
         self._Joft = None
         self._Jrad = None
         self._xoft = None
+
+
+    class coeffs(object):
+        '''Coefficients of the momentum expression, from Eqs. (3.16-3.19,3.25) of arXiv:0707.4654. All are defined as static methods and can be called with, e.g., surrkick.surrkick().self.coeffs.a(l,m).'''
+
+        @staticmethod
+        def a(l,m):
+            '''Eq. (3.16) of arXiv:0707.4654.
+            Usage: a=surrkick.surrkick().coeffs.a(l,m)'''
+
+            return ( (l-m) * (l+m+1) )**0.5 / ( l * (l+1) )
+
+        @staticmethod
+        def b(l,m):
+            '''Eq. (3.17) of arXiv:0707.4654.
+            Usage: b=surrkick.surrkick().coeffs.b(l,m)'''
+
+            return  ( 1/(2*l) ) *  ( ( (l-2) * (l+2) * (l+m) * (l+m-1) ) / ( (2*l-1) * (2*l+1) ))**0.5
+
+        @staticmethod
+        def c(l,m):
+            '''Eq. (3.18) of arXiv:0707.4654.
+            Usage: c=surrkick.surrkick().coeffs.c(l,m)'''
+
+            return  2*m / ( l * (l+1) )
+
+        @staticmethod
+        def d(l,m):
+            '''Eq. (3.19) of arXiv:0707.4654.
+            Usage: d=surrkick.surrkick().coeffs.d(l,m)'''
+
+            return  ( 1/l ) *  ( ( (l-2) * (l+2) * (l-m) * (l+m) ) / ( (2*l-1) * (2*l+1) ))**0.5
+
+        @staticmethod
+        def f(l,m):
+            '''Eq. (3.25) of arXiv:0707.4654.
+            Usage: `f=surrkick.coeffs.f(l,m)`'''
+
+            return  ( l*(l+1) - m*(m+1) )**0.5
+
+
 
 
     @property
@@ -299,9 +301,9 @@ class surrkick(object):
             for l,m in summodes.single(self.lmax):
 
                 # Eq. 3.14. dPpdt= dPxdt + i dPydt
-                dPpdt += (1/(8*np.pi)) * self.hdot(l,m) * ( coeffs.a(l,m) * np.conj(self.hdot(l,m+1)) + coeffs.b(l,-m) * np.conj(self.hdot(l-1,m+1)) - coeffs.b(l+1,m+1) * np.conj(self.hdot(l+1,m+1)) )
+                dPpdt += (1/(8*np.pi)) * self.hdot(l,m) * ( self.coeffs.a(l,m) * np.conj(self.hdot(l,m+1)) + self.coeffs.b(l,-m) * np.conj(self.hdot(l-1,m+1)) - self.coeffs.b(l+1,m+1) * np.conj(self.hdot(l+1,m+1)) )
                 # Eq. 3.15
-                dPzdt += (1/(16*np.pi)) * self.hdot(l,m) * ( coeffs.c(l,m) * np.conj(self.hdot(l,m)) + coeffs.d(l,m) * np.conj(self.hdot(l-1,m)) + coeffs.d(l+1,m) * np.conj(self.hdot(l+1,m)) )
+                dPzdt += (1/(16*np.pi)) * self.hdot(l,m) * ( self.coeffs.c(l,m) * np.conj(self.hdot(l,m)) + self.coeffs.d(l,m) * np.conj(self.hdot(l-1,m)) + self.coeffs.d(l+1,m) * np.conj(self.hdot(l+1,m)) )
 
             dPxdt=dPpdt.real # From the definition of Pplus
             dPydt=dPpdt.imag # From the definition of Pplus
@@ -382,9 +384,9 @@ class surrkick(object):
             for l,m in summodes.single(self.lmax):
 
                 # Eq. 3.22
-                dJxdt += (1/(32*np.pi)) * self.h(l,m) * ( coeffs.f(l,m) * np.conj(self.hdot(l,m+1)) + coeffs.f(l,-m) * np.conj(self.hdot(l,m-1)) )
+                dJxdt += (1/(32*np.pi)) * self.h(l,m) * ( self.coeffs.f(l,m) * np.conj(self.hdot(l,m+1)) + self.coeffs.f(l,-m) * np.conj(self.hdot(l,m-1)) )
                 # Eq. 3.23
-                dJydt += (-1/(32*np.pi)) * self.h(l,m) * ( coeffs.f(l,m) * np.conj(self.hdot(l,m+1)) - coeffs.f(l,-m) * np.conj(self.hdot(l,m-1)) )
+                dJydt += (-1/(32*np.pi)) * self.h(l,m) * ( self.coeffs.f(l,m) * np.conj(self.hdot(l,m+1)) - self.coeffs.f(l,-m) * np.conj(self.hdot(l,m-1)) )
                 # Eq. 3.24
                 dJzdt += (1/(16*np.pi)) * m * self.h(l,m) * np.conj(self.hdot(l,m))
 
@@ -440,7 +442,7 @@ def project(timeseries,direction):
 
 
 class plots(object):
-    '''Produce plots of our paper FIX_PAPER_REF.'''
+    '''Reproduce plots of our paper: Black-hole kicks from numerical-relativity surrogate models'''
 
     def plottingstuff(function):
         '''Python decorator to handle plotting, including defining all defaults and storing the final pdf. Just add @plottingstuff to any methond of the plots class.'''
@@ -546,14 +548,29 @@ class plots(object):
 
         return wrapper
 
+    @classmethod
+    def minimal(self):
+        '''Minimal working example.
+        Usage: surrkick.plots.minimal()'''
 
-
+        import matplotlib.pyplot as plt
+        sk=surrkick(q=0.5,chi1=[0.8,0,0], chi2=[-0.8,0,0])
+        print("vk/c=", sk.kick)
+        plt.plot(sk.times,sk.voft[:,0],label="x")
+        plt.plot(sk.times,sk.voft[:,1],label="y")
+        plt.plot(sk.times,sk.voft[:,2],label="z")
+        plt.plot(sk.times,project(sk.voft,sk.kickdir),label="vk")
+        plt.xlim(-100,100)
+        plt.legend()
+        plt.show()
 
 
     @classmethod
     @plottingstuff
     def nospinprofiles(self):
-        '''Fig. FIX_PAPER_FIG of FIX_PAPER_REF.'''
+        '''Fig. 1. Kick profiles for non-spinning binaries.
+        Usage: surrkick.plots.nospinprofiles()'''
+
 
         L=0.7
         H=0.3
@@ -605,7 +622,8 @@ class plots(object):
     @classmethod
     @plottingstuff
     def centerofmass(self):
-        '''Fig. FIX_PAPER_FIG of FIX_PAPER_REF.'''
+        '''Fig. 2. Center of mass trajectories.
+        Usage: surrkick.plots.centerofmass()'''
 
         allfig=[]
 
@@ -747,7 +765,9 @@ class plots(object):
     @classmethod
     @animate
     def recoil(self):
-        '''Fig. FIX_PAPER_FIG of FIX_PAPER_REF.'''
+        '''Animated version of Fig. 2. Center of mass trajectories.
+        Usage: surrkick.plots.recoil()'''
+
 
         leftpanel,middlepanel,rightpanel=True,True,True
         #leftpanel,middlepanel,rightpanel=True,False,False
@@ -940,7 +960,8 @@ class plots(object):
     @classmethod
     @plottingstuff
     def hangupErad(self):
-        '''Fig. FIX_PAPER_FIG of FIX_PAPER_REF'''
+        '''Fig. 3. Energy radiated for binaries with aligned spins.
+        Usage: surrkick.plots.hangupErad()'''
 
         figs=[]
         L=0.7
@@ -977,7 +998,8 @@ class plots(object):
     @classmethod
     @plottingstuff
     def spinaligned(self):
-        '''Fig. FIX_PAPER_FIG of FIX_PAPER_REF'''
+        '''Fig. 4. Kicks for binaries with aligned spins.
+        Usage: surrkick.plots.spinaligned()'''
 
         figs=[]
         L=0.7
@@ -1027,7 +1049,8 @@ class plots(object):
     @classmethod
     @plottingstuff
     def leftright(self):
-        '''Fig. FIX_PAPER_FIG of FIX_PAPER_REF'''
+        '''Fig. 5. Kicks for binaries with spins in the orbital plane.
+        Usage: surrkick.plots.leftright()'''
 
         figs=[]
         L=0.7
@@ -1095,7 +1118,9 @@ class plots(object):
     @classmethod
     @plottingstuff
     def alphaseries(self):
-        '''Fig. FIX_PAPER_FIG of FIX_PAPER_REF. This is similar to Fig 4 in arXiv:0707.0135.'''
+        '''Fig. 6. Degeneracy between the reference time and an overall spin rotation.
+        Usage: surrkick.plots.alphaseries()'''
+
 
         fig = plt.figure(figsize=(6,6))
         L=0.7
@@ -1141,7 +1166,9 @@ class plots(object):
     @classmethod
     @plottingstuff
     def alphaprof(self):
-        '''Fig. FIX_PAPER_FIG of FIX_PAPER_REF.'''
+        '''Fig. 7. Role of the orbital phase at merger.
+        Usage: surrkick.plots.alphaprof()'''
+
 
         fig = plt.figure(figsize=(6,6))
         ax=fig.add_axes([0,0,0.7,0.3])
@@ -1165,48 +1192,9 @@ class plots(object):
         return fig
 
     @classmethod
-    @plottingstuff
-    def lineofsight(self):
-        '''Fig. FIX_PAPER_FIG of FIX_PAPER_REF'''
-
-        L=0.7
-        H=0.6
-        S=0.05
-        fig = plt.figure(figsize=(6,6))
-        ax = fig.add_axes([0,0,L,H])
-        ax.axhline(0,c='black',alpha=0.3,ls='dotted')
-
-        q=0.5
-        chimag=0.8
-        sk= surrkick(q=q,chi1=[0,0,chimag],chi2=[0,0,-chimag],t_ref=-100)
-        dim=15
-        store=[]
-        for i in tqdm(np.linspace(0,1,dim)):
-            phi = np.random.uniform(0,2*np.pi)
-            theta = np.arccos(np.random.uniform(-1,1))
-            randomvec= [np.sin(theta)*np.cos(phi), np.sin(theta)*np.sin(phi), np.cos(theta)]
-            store.append([randomvec,project(sk.voft,randomvec)[-1]])
-
-        store=sorted(store, key=lambda x:x[1])
-
-        for i,rv in tqdm(zip(np.linspace(0,1,dim),[x[0] for x in store])):
-            color=plt.cm.copper(i)
-            ax.plot(sk.times,1./0.001*project(sk.voft,rv),c=color,alpha=0.8)
-
-        ax.text(0.05,0.75,'$q='+str(q)+'$\n$\chi_1=\chi_2=0.8$\n right-left',transform=ax.transAxes,linespacing=1.4)
-        ax.set_xlim(-50,50)
-        ax.yaxis.set_major_locator(MultipleLocator(0.5))
-        ax.yaxis.set_minor_locator(MultipleLocator(0.1))
-        ax.xaxis.set_minor_locator(AutoMinorLocator())
-        ax.set_xlabel("$t\;\;[M]$")
-        ax.set_ylabel("$\mathbf{v}(t) \cdot \mathbf{\hat n} \;\;[0.001c]$")
-
-        return fig
-
-
-    @classmethod
     def findlarge(self):
-        '''Fig. FIX_PAPER_FIG of FIX_PAPER_REF'''
+        '''Generate large sample of binaries to find hang-up kicks (no plot).
+        Usage: surrkick.plots.findlarge()'''
 
         dim=int(1e5)
         filename='findlarge.pkl'
@@ -1246,67 +1234,54 @@ class plots(object):
         print("chi2=", chi2m, 'theta2=',np.degrees(np.arccos(chi2m[-1])))
         return []
 
+
+
     @classmethod
     @plottingstuff
-    def normprofiles(self):
-        '''Fig. FIX_PAPER_FIG of FIX_PAPER_REF'''
+    def lineofsight(self):
+        '''Fig. 8. Projections of the kick profile.
+        Usage: surrkick.plots.lineofsight()'''
 
-        levels = np.linspace(0,1.6,100)
-        CS3 = plt.contourf([[0,0],[0,0]], levels, cmap=plt.cm.copper,extend='max')
-        plt.clf()
-
-        fig = plt.figure(figsize=(4,4))
-        ax=fig.add_axes([0,0,0.7,0.7])
+        L=0.7
+        H=0.6
+        S=0.05
+        fig = plt.figure(figsize=(6,6))
+        ax = fig.add_axes([0,0,L,H])
         ax.axhline(0,c='black',alpha=0.3,ls='dotted')
-        ax.axhline(1,c='black',alpha=0.3,ls='dotted')
 
-        filename='normprofiles.pkl'
-        if not os.path.isfile(filename):
-            print("Storing data:", filename)
+        q=0.5
+        chimag=0.8
+        sk= surrkick(q=q,chi1=[0,0,chimag],chi2=[0,0,-chimag],t_ref=-100)
+        dim=15
+        store=[]
+        for i in tqdm(np.linspace(0,1,dim)):
+            phi = np.random.uniform(0,2*np.pi)
+            theta = np.arccos(np.random.uniform(-1,1))
+            randomvec= [np.sin(theta)*np.cos(phi), np.sin(theta)*np.sin(phi), np.cos(theta)]
+            store.append([randomvec,project(sk.voft,randomvec)[-1]])
 
-            data=[]
-            for i in tqdm(range(200)):
-                q=np.random.uniform(0.5,1)
-                phi = np.random.uniform(0,2*np.pi)
-                theta = np.arccos(np.random.uniform(-1,1))
-                r = 0.8*(np.random.uniform(0,1))**(1./3.)
-                chi1= [ r*np.sin(theta)*np.cos(phi), r*np.sin(theta)*np.sin(phi), r*np.cos(theta) ]
-                phi = np.random.uniform(0,2*np.pi)
-                theta = np.arccos(np.random.uniform(-1,1))
-                r = 0.8*(np.random.uniform(0,1))**(1./3.)
-                chi2= [ r*np.sin(theta)*np.cos(phi), r*np.sin(theta)*np.sin(phi), r*np.cos(theta) ]
-                sk= surrkick(q=q,chi1=chi1,chi2=chi2)
-                phi = np.random.uniform(0,2*np.pi)
-                theta = np.arccos(np.random.uniform(-1,1))
-                randomdir= [np.sin(theta)*np.cos(phi), np.sin(theta)*np.sin(phi), np.cos(theta) ]
-                data.append([sk.kick, project(sk.voft/sk.kick,sk.kickdir)])
+        store=sorted(store, key=lambda x:x[1])
 
-            with open(filename, 'wb') as f: pickle.dump(data, f)
-        with open(filename, 'rb') as f: data = pickle.load(f)
+        for i,rv in tqdm(zip(np.linspace(0,1,dim),[x[0] for x in store])):
+            color=plt.cm.copper(i)
+            ax.plot(sk.times,1./0.001*project(sk.voft,rv),c=color,alpha=0.8)
 
-        times=surrkick().times
-        for d in tqdm(data):
-            ax.plot(times,d[1],alpha=0.7, c= plt.cm.copper(d[0]/0.0016),lw=1)
-
-        axcb = fig.add_axes([0.72,0,0.05,0.7])
-        cb = fig.colorbar(CS3,cax=axcb,boundaries=np.linspace(0,1.6,100),ticks=np.linspace(0,1.6,9))
-        ax.plot(times,scipy.stats.norm.cdf(times, loc=10, scale=8),dashes=[10,4],c='C0',lw=2)
-        ax.plot(times,scipy.stats.norm.cdf(times, loc=10, scale=8),c='C0',alpha=0.5,lw=1)
+        ax.text(0.05,0.75,'$q='+str(q)+'$\n$\chi_1=\chi_2=0.8$\n right-left',transform=ax.transAxes,linespacing=1.4)
         ax.set_xlim(-50,50)
-        ax.set_ylim(-2.5,2.5)
-        ax.xaxis.set_major_locator(MultipleLocator(20))
+        ax.yaxis.set_major_locator(MultipleLocator(0.5))
+        ax.yaxis.set_minor_locator(MultipleLocator(0.1))
         ax.xaxis.set_minor_locator(AutoMinorLocator())
-        ax.yaxis.set_minor_locator(AutoMinorLocator())
-        cb.set_label('$v_k\;\;[0.001c]$')
         ax.set_xlabel("$t\;\;[M]$")
-        ax.set_ylabel("$\mathbf{v}(t)\cdot\mathbf{\hat n}\, /\, \mathbf{v_k}\cdot\mathbf{\hat n}$")
+        ax.set_ylabel("$\mathbf{v}(t) \cdot \mathbf{\hat n} \;\;[0.001c]$")
 
         return fig
+
 
     @classmethod
     @plottingstuff
     def explore(self):
-        '''Fig. FIX_PAPER_FIG of FIX_PAPER_REF'''
+        '''Fig. 9. Radiated quantities on statistical sample of binaries, compare with fitting formula.
+        Usage: surrkick.plots.explore()'''
 
         fig = plt.figure(figsize=(6,6))
         L=0.6
@@ -1398,53 +1373,77 @@ class plots(object):
 
         return fig
 
+
+
+
     @classmethod
-    def timing(self):
-        '''Fig. FIX_PAPER_FIG of FIX_PAPER_REF'''
+    @plottingstuff
+    def normprofiles(self):
+        '''Fig. 10. Shape of the kicks.
+        Usage: surrkick.plots.normprofiles()'''
 
-        dim=1000
-        surrogate().sur() # Load the surrogate once for all
 
-        timessur=[]
-        timeskick=[]
-        timesall=[]
-        for i in tqdm(range(dim)):
 
-            q=np.random.uniform(0.5,1)
-            phi = np.random.uniform(0,2*np.pi)
-            theta = np.arccos(np.random.uniform(-1,1))
-            r = 0.8*(np.random.uniform(0,1))**(1./3.)
-            chi1= [ r*np.sin(theta)*np.cos(phi), r*np.sin(theta)*np.sin(phi), r*np.cos(theta) ]
-            phi = np.random.uniform(0,2*np.pi)
-            theta = np.arccos(np.random.uniform(-1,1))
-            r = 0.8*(np.random.uniform(0,1))**(1./3.)
-            chi2= [ r*np.sin(theta)*np.cos(phi), r*np.sin(theta)*np.sin(phi), r*np.cos(theta) ]
-            sk= surrkick(q=q,chi1=chi1,chi2=chi2)
+        levels = np.linspace(0,1.6,100)
+        CS3 = plt.contourf([[0,0],[0,0]], levels, cmap=plt.cm.copper,extend='max')
+        plt.clf()
 
-            t0=time.time()
-            sk.hsample
-            tsur=time.time()-t0
+        fig = plt.figure(figsize=(4,4))
+        ax=fig.add_axes([0,0,0.7,0.7])
+        ax.axhline(0,c='black',alpha=0.3,ls='dotted')
+        ax.axhline(1,c='black',alpha=0.3,ls='dotted')
 
-            t0=time.time()
-            sk.kick
-            tkick=time.time()-t0
+        filename='normprofiles.pkl'
+        if not os.path.isfile(filename):
+            print("Storing data:", filename)
 
-            t0=time.time()
-            sk=surrkick(q=q,chi1=chi1,chi2=chi2).kick
-            tall=time.time()-t0
+            data=[]
+            for i in tqdm(range(200)):
+                q=np.random.uniform(0.5,1)
+                phi = np.random.uniform(0,2*np.pi)
+                theta = np.arccos(np.random.uniform(-1,1))
+                r = 0.8*(np.random.uniform(0,1))**(1./3.)
+                chi1= [ r*np.sin(theta)*np.cos(phi), r*np.sin(theta)*np.sin(phi), r*np.cos(theta) ]
+                phi = np.random.uniform(0,2*np.pi)
+                theta = np.arccos(np.random.uniform(-1,1))
+                r = 0.8*(np.random.uniform(0,1))**(1./3.)
+                chi2= [ r*np.sin(theta)*np.cos(phi), r*np.sin(theta)*np.sin(phi), r*np.cos(theta) ]
+                sk= surrkick(q=q,chi1=chi1,chi2=chi2)
+                phi = np.random.uniform(0,2*np.pi)
+                theta = np.arccos(np.random.uniform(-1,1))
+                randomdir= [np.sin(theta)*np.cos(phi), np.sin(theta)*np.sin(phi), np.cos(theta) ]
+                data.append([sk.kick, project(sk.voft/sk.kick,sk.kickdir)])
 
-            timessur.append(tsur)
-            timeskick.append(tkick)
-            timesall.append(tall)
+            with open(filename, 'wb') as f: pickle.dump(data, f)
+        with open(filename, 'rb') as f: data = pickle.load(f)
 
-        print("Time, surrogate waveform:", np.mean(timessur),'s')
-        print("Time, kick:", np.mean(timeskick),'s')
-        print("Time, both:", np.mean(timesall),'s')
+        times=surrkick().times
+        for d in tqdm(data):
+            ax.plot(times,d[1],alpha=0.7, c= plt.cm.copper(d[0]/0.0016),lw=1)
+
+        axcb = fig.add_axes([0.72,0,0.05,0.7])
+        cb = fig.colorbar(CS3,cax=axcb,boundaries=np.linspace(0,1.6,100),ticks=np.linspace(0,1.6,9))
+        ax.plot(times,scipy.stats.norm.cdf(times, loc=10, scale=8),dashes=[10,4],c='C0',lw=2)
+        ax.plot(times,scipy.stats.norm.cdf(times, loc=10, scale=8),c='C0',alpha=0.5,lw=1)
+        ax.set_xlim(-50,50)
+        ax.set_ylim(-2.5,2.5)
+        ax.xaxis.set_major_locator(MultipleLocator(20))
+        ax.xaxis.set_minor_locator(AutoMinorLocator())
+        ax.yaxis.set_minor_locator(AutoMinorLocator())
+        cb.set_label('$v_k\;\;[0.001c]$')
+        ax.set_xlabel("$t\;\;[M]$")
+        ax.set_ylabel("$\mathbf{v}(t)\cdot\mathbf{\hat n}\, /\, \mathbf{v_k}\cdot\mathbf{\hat n}$")
+
+        return fig
 
 
     @classmethod
     @plottingstuff
     def symmetry(self):
+        '''Fig. 11. Exploit symmetries to test accuracy.
+        Usage: surrkick.plots.symmetry()'''
+
+
         L=0.7
         H=0.4
         S=0.15
@@ -1511,6 +1510,9 @@ class plots(object):
     @classmethod
     @plottingstuff
     def nr_comparison_histograms(self):
+        '''Fig. 12. Comparison with SPeC simulations, sources of error.
+        Usage: surrkick.plots.nr_comparison_histograms()'''
+
 
         fig = plt.figure(figsize=(6,6))
         ax = fig.add_axes([0,0,1.25,0.6])
@@ -1591,6 +1593,8 @@ class plots(object):
     @classmethod
     @plottingstuff
     def nr_comparison_scatter(self):
+        '''Fig. 13. Comparison with SPeC simulations, percentiles.
+        Usage: surrkick.plots.nr_comparison_scatter()'''
 
         main_w = 0.6
         main_h = 0.6
@@ -1687,6 +1691,9 @@ class plots(object):
     @classmethod
     @plottingstuff
     def nr_comparison_profiles(self):
+        '''Fig. 14. Comparison with SPeC simulations, time profiles.
+        Usage: surrkick.plots.nr_comparison_profiles()'''
+
 
         w = 0.8
         h = 0.45
@@ -1754,6 +1761,53 @@ class plots(object):
 
         return fig
 
+    @classmethod
+    def timing(self):
+        '''Surrkick code performance (no plot)
+        Usage: surrkick.plots.timing()'''
+
+
+        dim=1000
+        surrogate().sur() # Load the surrogate once for all
+
+        timessur=[]
+        timeskick=[]
+        timesall=[]
+        for i in tqdm(range(dim)):
+
+            q=np.random.uniform(0.5,1)
+            phi = np.random.uniform(0,2*np.pi)
+            theta = np.arccos(np.random.uniform(-1,1))
+            r = 0.8*(np.random.uniform(0,1))**(1./3.)
+            chi1= [ r*np.sin(theta)*np.cos(phi), r*np.sin(theta)*np.sin(phi), r*np.cos(theta) ]
+            phi = np.random.uniform(0,2*np.pi)
+            theta = np.arccos(np.random.uniform(-1,1))
+            r = 0.8*(np.random.uniform(0,1))**(1./3.)
+            chi2= [ r*np.sin(theta)*np.cos(phi), r*np.sin(theta)*np.sin(phi), r*np.cos(theta) ]
+            sk= surrkick(q=q,chi1=chi1,chi2=chi2)
+
+            t0=time.time()
+            sk.hsample
+            tsur=time.time()-t0
+
+            t0=time.time()
+            sk.kick
+            tkick=time.time()-t0
+
+            t0=time.time()
+            sk=surrkick(q=q,chi1=chi1,chi2=chi2).kick
+            tall=time.time()-t0
+
+            timessur.append(tsur)
+            timeskick.append(tkick)
+            timesall.append(tall)
+
+        print("Time, surrogate waveform:", np.mean(timessur),'s')
+        print("Time, kick:", np.mean(timeskick),'s')
+        print("Time, both:", np.mean(timesall),'s')
+
+
+
 ########################################
 if __name__ == "__main__":
     pass
@@ -1786,4 +1840,4 @@ if __name__ == "__main__":
 
     #plots.nr_comparison_histograms()
     #plots.nr_comparison_scatter()
-    plots.nr_comparison_profiles()
+    #plots.nr_comparison_profiles()
