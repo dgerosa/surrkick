@@ -1175,7 +1175,7 @@ class plots(object):
         Usage: surrkick.plots.findlarge()'''
 
         dim=int(1e5)
-        filename='findlarge.pkl'
+        filename='findlarge_chi1.pkl'
         if not os.path.isfile(filename):
 
             def _kickdistr(i):
@@ -1185,12 +1185,14 @@ class plots(object):
                 phi = np.random.uniform(0,2*np.pi)
                 theta = np.arccos(np.random.uniform(-1,1))
                 #r = 0.8*(np.random.uniform(0,1))**(1./3.)
-                r=0.8
+                #r=0.8
+                r=1
                 chi1= [ r*np.sin(theta)*np.cos(phi), r*np.sin(theta)*np.sin(phi), r*np.cos(theta) ]
                 phi = np.random.uniform(0,2*np.pi)
                 theta = np.arccos(np.random.uniform(-1,1))
                 #r = 0.8*(np.random.uniform(0,1))**(1./3.)
-                r=0.8
+                #r=0.8
+                r=1
                 chi2= [ r*np.sin(theta)*np.cos(phi), r*np.sin(theta)*np.sin(phi), r*np.cos(theta) ]
                 sk= surrkick(q=q,chi1=chi1,chi2=chi2)
                 return [q,chi1,chi2,sk.kick]
@@ -1768,3 +1770,4 @@ class plots(object):
 ########################################
 if __name__ == "__main__":
     pass
+    plots.findlarge()
