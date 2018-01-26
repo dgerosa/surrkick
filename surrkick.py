@@ -1175,7 +1175,8 @@ class plots(object):
         Usage: surrkick.plots.findlarge()'''
 
         dim=int(1e5)
-        filename='findlarge_chi1.pkl'
+        filename='findlarge.pkl'
+        #filename='findlarge_chi1.pkl'
         if not os.path.isfile(filename):
 
             def _kickdistr(i):
@@ -1185,14 +1186,14 @@ class plots(object):
                 phi = np.random.uniform(0,2*np.pi)
                 theta = np.arccos(np.random.uniform(-1,1))
                 #r = 0.8*(np.random.uniform(0,1))**(1./3.)
-                #r=0.8
-                r=1
+                r=0.8
+                #r=1
                 chi1= [ r*np.sin(theta)*np.cos(phi), r*np.sin(theta)*np.sin(phi), r*np.cos(theta) ]
                 phi = np.random.uniform(0,2*np.pi)
                 theta = np.arccos(np.random.uniform(-1,1))
                 #r = 0.8*(np.random.uniform(0,1))**(1./3.)
-                #r=0.8
-                r=1
+                r=0.8
+                #r=1
                 chi2= [ r*np.sin(theta)*np.cos(phi), r*np.sin(theta)*np.sin(phi), r*np.cos(theta) ]
                 sk= surrkick(q=q,chi1=chi1,chi2=chi2)
                 return [q,chi1,chi2,sk.kick]
@@ -1213,6 +1214,62 @@ class plots(object):
         print("chi1=", chi1m, 'theta1=',np.degrees(np.arccos(chi1m[-1])))
         print("chi2=", chi2m, 'theta2=',np.degrees(np.arccos(chi2m[-1])))
         return []
+
+
+
+    @classmethod
+    def extrapolate(self):
+        '''Generate large sample of binaries to find hang-up kicks (no plot).
+        Usage: surrkick.plots.findlarge()'''
+
+        dim=int(1e5)
+        #filename='findlarge.pkl'
+
+        chi_vals=[0.7,0.72,0.74,0.76,0.78,0.8,1]
+        print(chi_vals)
+        for r in chi_vals:
+
+            filename='findlarge_chi'+str(r)+'.pkl'
+            if not os.path.isfile(filename):
+
+                def _kickdistr(i):
+                    np.random.seed()
+                    #q=np.random.uniform(0.5,1)
+                    q=1
+                    phi = np.random.uniform(0,2*np.pi)
+                    theta = np.arccos(np.random.uniform(-1,1))
+                    #r = 0.8*(np.random.uniform(0,1))**(1./3.)
+                    r=0.8
+                    #r=1
+                    chi1= [ r*np.sin(theta)*np.cos(phi), r*np.sin(theta)*np.sin(phi), r*np.cos(theta) ]
+                    phi = np.random.uniform(0,2*np.pi)
+                    theta = np.arccos(np.random.uniform(-1,1))
+                    #r = 0.8*(np.random.uniform(0,1))**(1./3.)
+                    r=0.8
+                    #r=1
+                    chi2= [ r*np.sin(theta)*np.cos(phi), r*np.sin(theta)*np.sin(phi), r*np.cos(theta) ]
+                    sk= surrkick(q=q,chi1=chi1,chi2=chi2)
+                    return [q,chi1,chi2,sk.kick]
+
+                print("Running in parallel on", multiprocessing.cpu_count(),"cores. Storing data:", filename)
+                parmap = pathos.multiprocessing.ProcessingPool(multiprocessing.cpu_count()).imap
+                data= list(tqdm(parmap(_kickdistr, range(dim)),total=dim))
+
+                with open(filename, 'wb') as f: pickle.dump(zip(*data), f)
+            with open(filename, 'rb') as f: q,chi1,chi2,kicks = pickle.load(f)
+
+            print("chi:", r)
+            mk=max(kicks)
+            print(mk)
+            maxind= kicks==mk
+            print("Largest kick:", mk, convert.kms(mk))
+            chi1m= np.array(chi1)[maxind][0]/0.8
+            chi2m= np.array(chi2)[maxind][0]/0.8
+            print("chi1=", chi1m, 'theta1=',np.degrees(np.arccos(chi1m[-1])))
+            print("chi2=", chi2m, 'theta2=',np.degrees(np.arccos(chi2m[-1])))
+        return []
+
+
 
     @classmethod
     @plottingstuff
@@ -1390,6 +1447,7 @@ class plots(object):
         with open(filename, 'rb') as f: data = pickle.load(f)
 
         times=surrkick().times
+        #data.sort(key=lambda x: x[0])
         for d in tqdm(data):
             ax.plot(times,d[1],alpha=0.7, c= plt.cm.copper(d[0]/0.0016),lw=1)
 
@@ -1770,4 +1828,4 @@ class plots(object):
 ########################################
 if __name__ == "__main__":
     pass
-    plots.findlarge()
+    plots.extrapolate()
