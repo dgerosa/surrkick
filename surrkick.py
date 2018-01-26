@@ -1225,7 +1225,9 @@ class plots(object):
         dim=int(1e5)
         #filename='findlarge.pkl'
 
+
         chi_vals=[0.7,0.72,0.74,0.76,0.78,0.8,1]
+        mk_vals=[]
         print(chi_vals)
         for r in chi_vals:
 
@@ -1260,6 +1262,7 @@ class plots(object):
 
             print("chi:", r)
             mk=max(kicks)
+            mk_vals.append(mk)
             print(mk)
             maxind= kicks==mk
             print("Largest kick:", mk, convert.kms(mk))
@@ -1267,7 +1270,15 @@ class plots(object):
             chi2m= np.array(chi2)[maxind][0]/0.8
             print("chi1=", chi1m, 'theta1=',np.degrees(np.arccos(chi1m[-1])))
             print("chi2=", chi2m, 'theta2=',np.degrees(np.arccos(chi2m[-1])))
-        return []
+
+
+        fig = plt.figure(figsize=(6,6))
+        ax = fig.add_axes([0,0,0.8,0.8])
+        ax.scatter(chi_vals,mk_vals)
+        ax.set_xlabel("$\\chi$")
+        ax.set_ylabel("${\\rm max} v_k$")
+
+        return fig
 
 
 
