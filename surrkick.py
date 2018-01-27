@@ -1216,8 +1216,49 @@ class plots(object):
         return []
 
 
+    @classmethod
+    def findlargefit(self):
+        '''Generate large sample of binaries to find hang-up kicks (no plot).
+        Usage: surrkick.plots.findlarge()'''
+
+        dim=int(1e5)
+        filename='findlargefit.pkl'
+        #filename='findlarge_chi1.pkl'
+        if not os.path.isfile(filename):
+
+            def _kickdistr(i):
+                np.random.seed()
+                q=1
+                chi1m=0.8
+                chi2m=0.8
+                theta1=np.arccos(np.random.uniform(-1,1))
+                theta2=np.arccos(np.random.uniform(-1,1))
+                deltaphi = np.random.uniform(0,2*np.pi)
+                dummy,dummy,dummy,S1,S2=precession.get_fixed(q,chi1m,chi2m)
+                fk=precession.finalkick(theta1,theta2,deltaphi,q,S1,S2,maxkick=False,kms=False,more=False)
+
+
+                return [theta1,theta2,deltaphi,fk]
+
+            print("Running in parallel on", multiprocessing.cpu_count(),"cores. Storing data:", filename)
+            parmap = pathos.multiprocessing.ProcessingPool(multiprocessing.cpu_count()).imap
+            data= list(tqdm(parmap(_kickdistr, range(dim)),total=dim))
+
+            with open(filename, 'wb') as f: pickle.dump(zip(*data), f)
+        with open(filename, 'rb') as f: theta1,theta2,deltaphi,kicks = pickle.load(f)
+
+        mk=max(kicks)
+        print(mk)
+        maxind= kicks==mk
+        print("Largest kick:", mk, convert.kms(mk))
+        print('theta1=',np.degrees(np.array(theta1)[maxind][0]))
+        print('theta2=',np.degrees(np.array(theta2)[maxind][0]))
+        return []
+
+
 
     @classmethod
+    @plottingstuff
     def extrapolate(self):
         '''Generate large sample of binaries to find hang-up kicks (no plot).
         Usage: surrkick.plots.findlarge()'''
@@ -1839,4 +1880,4 @@ class plots(object):
 ########################################
 if __name__ == "__main__":
     pass
-    plots.extrapolate()
+    plots.findlargefit()
