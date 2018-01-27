@@ -1213,6 +1213,10 @@ class plots(object):
         chi2m= np.array(chi2)[maxind][0]/0.8
         print("chi1=", chi1m, 'theta1=',np.degrees(np.arccos(chi1m[-1])))
         print("chi2=", chi2m, 'theta2=',np.degrees(np.arccos(chi2m[-1])))
+
+        theta1,theta2,deltaphi,theta12=precession.build_angles([0,0,1],chi1m,chi2m)
+        fk=precession.finalkick(theta1,theta2,deltaphi,q,S1,S2,maxkick=False,kms=False,more=False)
+
         return []
 
 
