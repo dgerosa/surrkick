@@ -1176,156 +1176,43 @@ class plots(object):
 
         dim=int(1e5)
         filename='findlarge.pkl'
-        #filename='findlarge_chi1.pkl'
+
+        q=1
+        chi1=0.8
+        chi2=0.8
+
         if not os.path.isfile(filename):
 
             def _kickdistr(i):
                 np.random.seed()
-                #q=np.random.uniform(0.5,1)
-                q=1
-                phi = np.random.uniform(0,2*np.pi)
-                theta = np.arccos(np.random.uniform(-1,1))
-                #r = 0.8*(np.random.uniform(0,1))**(1./3.)
-                r=0.8
-                #r=1
-                chi1= [ r*np.sin(theta)*np.cos(phi), r*np.sin(theta)*np.sin(phi), r*np.cos(theta) ]
-                phi = np.random.uniform(0,2*np.pi)
-                theta = np.arccos(np.random.uniform(-1,1))
-                #r = 0.8*(np.random.uniform(0,1))**(1./3.)
-                r=0.8
-                #r=1
-                chi2= [ r*np.sin(theta)*np.cos(phi), r*np.sin(theta)*np.sin(phi), r*np.cos(theta) ]
-                sk= surrkick(q=q,chi1=chi1,chi2=chi2)
-                return [q,chi1,chi2,sk.kick]
+                phi1 = np.random.uniform(0,2*np.pi)
+                theta1 = np.arccos(np.random.uniform(-1,1))
+                chi1v= [ chi1*np.sin(theta1)*np.cos(phi1), chi1*np.sin(theta1)*np.sin(phi1), chi1*np.cos(theta1) ]
+                phi2 = np.random.uniform(0,2*np.pi)
+                theta2 = np.arccos(np.random.uniform(-1,1))
+                chi2v= [ chi2*np.sin(theta2)*np.cos(phi2), chi2*np.sin(theta2)*np.sin(phi2), chi2*np.cos(theta2) ]
+                sk= surrkick(q=q,chi1=chi1v,chi2=chi2v)
+
+                dummy,dummy,dummy,S1,S2=precession.get_fixed(q,chi1,chi2)
+                fk=precession.finalkick(theta1,theta2,phi2-phi1,1,S1,S2,maxkick=False,kms=False,more=False)
+
+                return [sk.kick,fk,theta1,theta2]
 
             print("Running in parallel on", multiprocessing.cpu_count(),"cores. Storing data:", filename)
             parmap = pathos.multiprocessing.ProcessingPool(multiprocessing.cpu_count()).imap
             data= list(tqdm(parmap(_kickdistr, range(dim)),total=dim))
 
             with open(filename, 'wb') as f: pickle.dump(zip(*data), f)
-        with open(filename, 'rb') as f: q,chi1,chi2,kicks = pickle.load(f)
+        with open(filename, 'rb') as f: skicks,fkicks,theta1,theta2 = pickle.load(f)
 
-        mk=max(kicks)
-        print(mk)
-        maxind= kicks==mk
-        print("Largest kick:", mk, convert.kms(mk))
-        chi1m= np.array(chi1)[maxind][0]/0.8
-        chi2m= np.array(chi2)[maxind][0]/0.8
-        print("chi1=", chi1m, 'theta1=',np.degrees(np.arccos(chi1m[-1])))
-        print("chi2=", chi2m, 'theta2=',np.degrees(np.arccos(chi2m[-1])))
 
-        theta1,theta2,deltaphi,theta12=precession.build_angles([0,0,1],chi1m,chi2m)
-        fk=precession.finalkick(theta1,theta2,deltaphi,q,S1,S2,maxkick=False,kms=False,more=False)
+        print("Largest kick (surrogate):", convert.kms(max(skicks)))
+        maxsk= skicks==max(skicks)
+        print('theta1=',np.degrees(np.array(theta1)[maxsk][0]))
+        print('theta2=',np.degrees(np.array(theta2)[maxsk][0]))
+        print("Largest kick (fitting formula):", convert.kms(max(fkicks)))
 
         return []
-
-
-    @classmethod
-    def findlargefit(self):
-        '''Generate large sample of binaries to find hang-up kicks (no plot).
-        Usage: surrkick.plots.findlarge()'''
-
-        dim=int(1e5)
-        filename='findlargefit.pkl'
-        #filename='findlarge_chi1.pkl'
-        if not os.path.isfile(filename):
-
-            def _kickdistr(i):
-                np.random.seed()
-                q=1
-                chi1m=0.8
-                chi2m=0.8
-                theta1=np.arccos(np.random.uniform(-1,1))
-                theta2=np.arccos(np.random.uniform(-1,1))
-                deltaphi = np.random.uniform(0,2*np.pi)
-                dummy,dummy,dummy,S1,S2=precession.get_fixed(q,chi1m,chi2m)
-                fk=precession.finalkick(theta1,theta2,deltaphi,q,S1,S2,maxkick=False,kms=False,more=False)
-
-
-                return [theta1,theta2,deltaphi,fk]
-
-            print("Running in parallel on", multiprocessing.cpu_count(),"cores. Storing data:", filename)
-            parmap = pathos.multiprocessing.ProcessingPool(multiprocessing.cpu_count()).imap
-            data= list(tqdm(parmap(_kickdistr, range(dim)),total=dim))
-
-            with open(filename, 'wb') as f: pickle.dump(zip(*data), f)
-        with open(filename, 'rb') as f: theta1,theta2,deltaphi,kicks = pickle.load(f)
-
-        mk=max(kicks)
-        print(mk)
-        maxind= kicks==mk
-        print("Largest kick:", mk, convert.kms(mk))
-        print('theta1=',np.degrees(np.array(theta1)[maxind][0]))
-        print('theta2=',np.degrees(np.array(theta2)[maxind][0]))
-        return []
-
-
-
-    @classmethod
-    @plottingstuff
-    def extrapolate(self):
-        '''Generate large sample of binaries to find hang-up kicks (no plot).
-        Usage: surrkick.plots.findlarge()'''
-
-        dim=int(1e5)
-        #filename='findlarge.pkl'
-
-
-        chi_vals=[0.7,0.72,0.74,0.76,0.78,0.8,1]
-        mk_vals=[]
-        print(chi_vals)
-        for r in chi_vals:
-
-            filename='findlarge_chi'+str(r)+'.pkl'
-            if not os.path.isfile(filename):
-
-                def _kickdistr(i):
-                    np.random.seed()
-                    #q=np.random.uniform(0.5,1)
-                    q=1
-                    phi = np.random.uniform(0,2*np.pi)
-                    theta = np.arccos(np.random.uniform(-1,1))
-                    #r = 0.8*(np.random.uniform(0,1))**(1./3.)
-                    r=0.8
-                    #r=1
-                    chi1= [ r*np.sin(theta)*np.cos(phi), r*np.sin(theta)*np.sin(phi), r*np.cos(theta) ]
-                    phi = np.random.uniform(0,2*np.pi)
-                    theta = np.arccos(np.random.uniform(-1,1))
-                    #r = 0.8*(np.random.uniform(0,1))**(1./3.)
-                    r=0.8
-                    #r=1
-                    chi2= [ r*np.sin(theta)*np.cos(phi), r*np.sin(theta)*np.sin(phi), r*np.cos(theta) ]
-                    sk= surrkick(q=q,chi1=chi1,chi2=chi2)
-                    return [q,chi1,chi2,sk.kick]
-
-                print("Running in parallel on", multiprocessing.cpu_count(),"cores. Storing data:", filename)
-                parmap = pathos.multiprocessing.ProcessingPool(multiprocessing.cpu_count()).imap
-                data= list(tqdm(parmap(_kickdistr, range(dim)),total=dim))
-
-                with open(filename, 'wb') as f: pickle.dump(zip(*data), f)
-            with open(filename, 'rb') as f: q,chi1,chi2,kicks = pickle.load(f)
-
-            print("chi:", r)
-            mk=max(kicks)
-            mk_vals.append(mk)
-            print(mk)
-            maxind= kicks==mk
-            print("Largest kick:", mk, convert.kms(mk))
-            chi1m= np.array(chi1)[maxind][0]/0.8
-            chi2m= np.array(chi2)[maxind][0]/0.8
-            print("chi1=", chi1m, 'theta1=',np.degrees(np.arccos(chi1m[-1])))
-            print("chi2=", chi2m, 'theta2=',np.degrees(np.arccos(chi2m[-1])))
-
-
-        fig = plt.figure(figsize=(6,6))
-        ax = fig.add_axes([0,0,0.8,0.8])
-        ax.scatter(chi_vals,mk_vals)
-        ax.set_xlabel("$\\chi$")
-        ax.set_ylabel("${\\rm max} v_k$")
-
-        return fig
-
-
 
     @classmethod
     @plottingstuff
@@ -1884,4 +1771,4 @@ class plots(object):
 ########################################
 if __name__ == "__main__":
     pass
-    plots.findlargefit()
+    plots.findlarge()
