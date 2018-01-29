@@ -1,4 +1,12 @@
-''' Extract black hole kicks from gravitational-wave surrogate models. '''
+'''surrkick: Black-hole kicks from numerical-relativity surrogate models.
+
+surrkick is a python module to extract radiate energy and momenta from waveform approximant.
+The present version of the code used the numerical-relativity surrogate model NRSur7dq2.
+
+More info on the code available in Sec. 5 of our paper and at https://davidegerosa.com/surrkick/
+Surrkick is distributed through the Python Package index, https://pypi.python.org/pypi/precession
+and github https://github.com/dgerosa/surrkick
+'''
 
 from __future__ import print_function,division
 import sys
@@ -19,15 +27,15 @@ import precession
 import warnings
 import json
 
-__author__ = "Davide Gerosa"
+__author__ = "Davide Gerosa, Francois Hebert"
 __email__ = "dgerosa@caltech.edu"
 __license__ = "MIT"
 __version__ = "0.0"
-__doc__="**Author** "+__author__+"\n\n"+\
-        "**email** "+__email__+"\n\n"+\
-        "**Licence** "+__license__+"\n\n"+\
-        "**Version** "+__version__+"\n\n"+\
-        __doc__
+__doc__+="\n\n"+"Authors: "+__author__+"\n"+\
+        "email: "+__email__+"\n"+\
+        "Licence: "+__license__+"\n"+\
+        "Version: "+__version__
+
 
 
 class summodes(object):
@@ -1771,4 +1779,3 @@ class plots(object):
 ########################################
 if __name__ == "__main__":
     pass
-    plots.findlarge()
