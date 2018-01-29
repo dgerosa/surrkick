@@ -4,7 +4,7 @@ surrkick is a python module to extract radiate energy and momenta from waveform 
 The present version of the code used the numerical-relativity surrogate model NRSur7dq2.
 
 More info on the code available in Sec. 5 of our paper and at https://davidegerosa.com/surrkick/
-Surrkick is distributed through the Python Package index, https://pypi.python.org/pypi/precession
+Surrkick is distributed through the Python Package index, https://pypi.python.org/pypi/surrkick
 and github https://github.com/dgerosa/surrkick
 '''
 
