@@ -6,7 +6,7 @@
 Binary black holes radiate linear momentum in gravitational waves as they merge. Recoils imparted to the black-hole remnant can reach thousands of km/s, thus ejecting black holes from their host galaxies. We exploit recent advances in gravitational waveform modeling to quickly and reliably extract recoils imparted to generic, precessing, black hole binaries.
 Our procedure uses a numerical-relativity surrogate model to obtain the gravitational waveform given a set of binary parameters, then from this waveform we directly integrate the gravitational-wave linear momentum flux.
 This entirely bypasses the need of fitting formulae which are typically used to model black-hole recoils in astrophysical contexts. We provide a thorough exploration of the black-hole kick phenomenology in the parameter space, summarizing and extending previous numerical results on the topic.
-Our extraction procedure is made publicly available as a module for the Python programming language named `surrkick`. Kick evaluations take ~80ms on a standard off-the-shelf machine, thus making our code ideal to be ported in large-scale astrophysical studies.
+Our extraction procedure is made publicly available as a module for the Python programming language named `surrkick`. Kick evaluations take ~80ms on a standard off-the-shelf machine, thus making our code ideal to be ported to large-scale astrophysical studies.
 
 ### Credits
 
@@ -36,8 +36,7 @@ You can try some functionalities with
 
 ### Main functions
 
-The core of the code consists in a single class, `surrkick`, whose methods allow to extract radiated energy, 
-linear momentum (kikcs) and angular momentum from the underlying wavefeform approximant. The main methods are:
+The core of the code consists of a single class, surrkick, whose methods allow to extract radiated energy, linear momentum (kicks) and angular momentum from the underlying waveform approximant. The main methods are:
 
 - `sur()`: Instance of the surrogate class from NRSur7dq2
 - `q`: Binary mass ratio 0.5<=q<=1 (Default: q=1).
