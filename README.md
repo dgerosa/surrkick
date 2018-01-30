@@ -16,7 +16,7 @@ When using `surrkick` in any published work, please cite the paper describing it
 Davide Gerosa, Francois Hebert.
 [arXiv:1802.XXXXX](https://arxiv.org/abs/arXiv:1802.XXXXX)
 
-The code is mainly developed and maintained by [Davide Gerosa](www.davidegerosa.com). [Francois Hebert](https://github.com/fmahebert) really helped! We also thank Jonathan Blackman, Chad Galley, Mark Scheel, Ulrich Sperhake, Leo Stein, Saul Teukolsky and Vijay Varma for various discussions and technical help.
+The code is mainly developed and maintained by [Davide Gerosa](www.davidegerosa.com) and [Francois Hebert](https://github.com/fmahebert). We also thank Jonathan Blackman, Chad Galley, Mark Scheel, Ulrich Sperhake, Leo Stein, Saul Teukolsky and Vijay Varma for various discussions and technical help.
 
 ### Releases
 
