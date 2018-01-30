@@ -28,7 +28,7 @@ LINK TO ZENODO v1.0.0. Stable version released together with the first arxiv sub
 
     pip install surrkick
   
-The SXS surrogate model NRSur7dq2 and a few other dependencies will be installed together with surrkick.
+The SXS surrogate model NRSur7dq2 and a few other dependencies will be installed together with surrkick. If you don't have it already, you might need to manually install numpy beforehand (that's `pip install numpy`).
 You can try some functionalities with
 
     import surrkick
