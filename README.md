@@ -63,7 +63,7 @@ and angular momentum from the underlying wavefeform approximant
 - `Jrad`: Total radiated angular momentum.                                   
 - `xoft`: Center-of-mass trajectory x(t).   
 
-The class plots contains script to reproduce all figures and results in 
+The class `plots` contains script to reproduce all figures and results in 
 [arXiv:1802.XXXXX](https://arxiv.org/abs/arXiv:1802.XXXXX). 
 You can explore its methods with, e.g. `help(surrkick.plots)`. 
 
