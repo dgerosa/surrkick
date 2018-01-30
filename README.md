@@ -1,7 +1,7 @@
-surrkick
-==========
+# surrkick
 
-## Black-hole kicks from numerical-relativity surrogate models
+
+### Black-hole kicks from numerical-relativity surrogate models
 
 Binary black holes radiate linear momentum in gravitational waves as they merge. Recoils imparted to the black-hole remnant can reach thousands of km/s, thus ejecting black holes from their host galaxies. We exploit recent advances in gravitational waveform modeling to quickly and reliably extract recoils imparted to generic, precessing, black hole binaries.
 Our procedure uses a numerical-relativity surrogate model to obtain the gravitational waveform given a set of binary parameters, then from this waveform we directly integrate the gravitational-wave linear momentum flux.
@@ -16,7 +16,7 @@ When using `surrkick` in any published work, please cite the paper describing it
 Davide Gerosa, Francois Hebert.
 [arXiv:1802.XXXXX](https://arxiv.org/abs/arXiv:1802.XXXXX)
 
-The code is mainly developed and maintained by [Davide Gerosa](www.davidegerosa.com) and [Francois Hebert](https://github.com/fmahebert). We also thank Jonathan Blackman, Chad Galley, Mark Scheel, Ulrich Sperhake, Leo Stein, Saul Teukolsky and Vijay Varma for various discussions and technical help.
+The code is developed and maintained by [Davide Gerosa](www.davidegerosa.com) and [Francois Hebert](https://github.com/fmahebert). We thank Jonathan Blackman, Chad Galley, Mark Scheel, Ulrich Sperhake, Leo Stein, Saul Teukolsky and Vijay Varma for various discussions and technical help.
 
 ### Releases
 
@@ -28,7 +28,7 @@ LINK TO ZENODO v1.0.0. Stable version released together with the first arxiv sub
 
     pip install surrkick
   
-The SXS surrogate model NRSur7dq2 and a few other dependencies will be installed together with surrkick.
+The SXS surrogate model NRSur7dq2 and a few other dependencies will be installed together with surrkick. If you don't have it already, you might need to manually install numpy beforehand (that's `pip install numpy`).
 You can try some functionalities with
 
     import surrkick
@@ -36,8 +36,8 @@ You can try some functionalities with
 
 ### Main functions
 
-The core of the code consists in a single class, `surrkick`, whose methods allow to extract radiated energy, linear momentum (kikcs) 
-and angular momentum from the underlying wavefeform approximant
+The core of the code consists in a single class, `surrkick`, whose methods allow to extract radiated energy, 
+linear momentum (kikcs) and angular momentum from the underlying wavefeform approximant. The main methods are:
 
 - `sur()`: Instance of the surrogate class from NRSur7dq2
 - `q`: Binary mass ratio 0.5<=q<=1 (Default: q=1).
@@ -85,5 +85,5 @@ The source code for the `surrkick.plots.minimal()` method mentioned above is
     plt.legend()
     plt.show()
 
-If you try it, you should get a printout `vk/c= 0.0037...` and the following plot:
+If you try it, you should get a printout that reads `vk/c= 0.0037...` and this plot:
 ![minimal](https://user-images.githubusercontent.com/7237041/35545942-7461b064-0526-11e8-8e9a-5bff25599fb7.png)
