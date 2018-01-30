@@ -10,7 +10,7 @@ def get_version():
 setup(
     name='surrkick',
     version=get_version(),
-    description='Black hole kicks with numerical-relativity surrogate models',
+    description='Black hole kicks from numerical-relativity surrogate models',
     long_description="See: `github.com/dgerosa/surrkick <https://github.com/dgerosa/surrkick>`_." ,
     classifiers=[
         'Topic :: Scientific/Engineering :: Astronomy',
