@@ -3,8 +3,12 @@ surrkick
 
 ## Black-hole kicks from numerical-relativity surrogate models
 
-surrkick is a python module to extract radiate energy and momenta from waveform approximants. 
-The present version of the code used the numerical-relativity surrogate model NRSur7dq2.
+Binary black holes radiate linear momentum in gravitational waves as they merge. Recoils imparted to the black-hole remnant can reach thousands of km/s, thus ejecting black holes from their host galaxies. We exploit recent advances in gravitational waveform modeling to quickly and reliably extract recoils imparted to generic, precessing, black hole binaries.
+Our procedure uses a numerical-relativity surrogate model to obtain the gravitational waveform given a set of binary parameters, then from this waveform we directly integrate the gravitational-wave linear momentum flux.
+This entirely bypasses the need of fitting formulae which are typically used to model black-hole recoils in astrophysical contexts. We provide a thorough exploration of the black-hole kick phenomenology in the parameter space, summarizing and extending previous numerical results on the topic.
+Our extraction procedure is made publicly available as a module for the Python programming language named `surrkick`. Kick evaluations take ~80ms on a standard off-the-shelf machine, thus making our code ideal to be ported in large-scale astrophysical studies.
+
+### Credits
 
 When using `surrkick` in any published work, please cite the paper describing its implementation:
 
@@ -12,13 +16,15 @@ When using `surrkick` in any published work, please cite the paper describing it
 Davide Gerosa, Francois Hebert.
 [arXiv:1802.XXXXX](https://arxiv.org/abs/arXiv:1802.XXXXX)
 
-More info on the code available in Sec. 5 of our paper and at [davidegerosa.com/surrkick](https://davidegerosa.com/surrkick])
-Surrkick is distributed through the [Python Package index](https://pypi.python.org/pypi/surrkick)
-and here on [github](github.com/dgerosa/surrkick).
+The code is mainly developed and maintained by [Davide Gerosa](www.davidegerosa.com). [Francois Hebert](https://github.com/fmahebert) really helped! We also thank Jonathan Blackman, Chad Galley, Mark Scheel, Ulrich Sperhake, Leo Stein, Saul Teukolsky and Vijay Varma for various discussions and technical help.
+
+### Releases
+
+LINK TO ZENODO v1.0.0. Stable version released together with the first arxiv submission of arXiv:1802.XXXXX](https://arxiv.org/abs/arXiv:1802.XXXXX).
 
 ### Installation
 
-Surrkick is a python module, uploaded to the Python Package Index. Installation is as easy as
+Surrkick is a python module, uploaded to the [Python Package index](https://pypi.python.org/pypi/surrkick). Installation is as easy as
 
     pip install surrkick
   
@@ -59,7 +65,11 @@ and angular momentum from the underlying wavefeform approximant
 
 The class plots contains script to reproduce all figures and results in 
 [arXiv:1802.XXXXX](https://arxiv.org/abs/arXiv:1802.XXXXX). 
-You can explore its methods with, e.g. `help(surrkick.plots)`. In particular, `surrkick.plots.minimal()` is:
+You can explore its methods with, e.g. `help(surrkick.plots)`. 
+
+### Test
+
+The source code for the `surrkick.plots.minimal()` method mentioned above is
     
     import surrkick
     import matplotlib.pyplot as plt
@@ -75,3 +85,5 @@ You can explore its methods with, e.g. `help(surrkick.plots)`. In particular, `s
     plt.legend()
     plt.show()
 
+If you try it, you should get a printout `vk/c= 0.0037...` and the following plot:
+![minimal](https://user-images.githubusercontent.com/7237041/35545942-7461b064-0526-11e8-8e9a-5bff25599fb7.png)
