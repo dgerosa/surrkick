@@ -1,11 +1,11 @@
 '''surrkick: Black-hole kicks from numerical-relativity surrogate models.
 
-surrkick is a python module to extract radiate energy and momenta from waveform approximant.
-The present version of the code used the numerical-relativity surrogate model NRSur7dq2.
+surrkick is a python module to extract radiated energy and momenta from waveform approximants.
+The present version of the code uses the numerical-relativity surrogate model NRSur7dq2.
 
-More info on the code available in Sec. 5 of our paper and at https://davidegerosa.com/surrkick/
-Surrkick is distributed through the Python Package index, https://pypi.python.org/pypi/surrkick
-and github https://github.com/dgerosa/surrkick
+More info on the code available in our paper and at https://davidegerosa.com/surrkick/
+Surrkick is distributed through the Python Package index (https://pypi.python.org/pypi/surrkick)
+and GitHub (https://github.com/dgerosa/surrkick).
 '''
 
 from __future__ import print_function,division
@@ -35,7 +35,6 @@ __doc__+="\n\n"+"Authors: "+__author__+"\n"+\
         "email: "+__email__+"\n"+\
         "Licence: "+__license__+"\n"+\
         "Version: "+__version__
-
 
 
 class summodes(object):
