@@ -24,7 +24,7 @@ LINK TO ZENODO v1.0.0. Stable version released together with the first arxiv sub
 
 ### Installation
 
-Surrkick is a python module, uploaded to the [Python Package index](https://pypi.python.org/pypi/surrkick). Installation is as easy as
+`surrkick` is a python module, uploaded to the [Python Package index](https://pypi.python.org/pypi/surrkick). Installation is as easy as
 
     pip install surrkick
   
