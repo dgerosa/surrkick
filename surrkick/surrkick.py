@@ -150,6 +150,8 @@ class surrkick(object):
         self._dPdt = None
         self._Poft = None
         self._Prad = None
+        self._voft = None
+        self._kick = None
         self._dJdt = None
         self._Joft = None
         self._Jrad = None
@@ -272,8 +274,6 @@ class surrkick(object):
 
         return self._dEdt
 
-
-
     @property
     def Eoft(self):
         '''Radiated energy as a function of time. Time integral of Eq. (3.8) of arXiv:0707.4654, evaluated at the time nodes. We first interpolate with a spline and then integrate analytically.
@@ -284,42 +284,44 @@ class surrkick(object):
             origin=0
             self._Eoft = spline(self.times,self.dEdt).antiderivative()(self.times)-origin
 
-            #Estimate energy radiated before the start of the simulation using 0PN result (Peters 64)
-            # tbuffer=100
-            # tend=self.times[0]+tbuffer
-            # Edot0 = spline(self.times[self.times<tend],self.dEdt[self.times<tend]).antiderivative()(tend)/tbuffer
-            # E0 = ( (5./1024.) *(self.q/(1.+self.q)**2.)**3. * Edot0 )**(1./5.)
-            # self._Eoft+=E0
+            flag_2PN=False
 
-            # Estimate the energy emitted before the start of the surrogate waveform using a 2PN expression.
-            # Extract the orbital phase evolution from the surrogate
-            if self.t_ref==-4500: # This is the default value for NRSur7dq2, which wants a None
-                dummy,phi,dummy,dummy=self.sur.get_dynamics(self.q,self.chi1,self.chi2,t_ref=None)
+            if not flag_2PN:
+                #Estimate energy radiated before the start of the simulation using 0PN result (Peters 64)
+                tbuffer=100
+                tend=self.times[0]+tbuffer
+                Edot0 = spline(self.times[self.times<tend],self.dEdt[self.times<tend]).antiderivative()(tend)/tbuffer
+                E0 = ( (5./1024.) *(self.q/(1.+self.q)**2.)**3. * Edot0 )**(1./5.)
+                self._Eoft+=E0
+
             else:
-                dummy,phi,dummy,dummy=self.sur.get_dynamics(self.q,self.chi1,self.chi2,t_ref=self.t_ref)
-            # Interpolate and derivate to find the orbital frequency as t_ref
-            omega = spline(self.sur.tds, phi).derivative()(self.t_ref)
-            # 2PN expression for the binding energy. Equations from Arun+ gr-qc/0810.5336v3 (note v3 because of an erratum!)
-            m1=self.q/(1+self.q)             # m1 is the heavy BH and q>1
-            m2=1/(1+self.q)                  # m2 is the light BH and q>1
-            nu = m1*m2                       # Eq. 2.12 with M=1
-            delta = m1-m2                    # Eq. 2.14 with M=1
-            chis = (self.chi1 + self.chi2)/2 # Eq. 2.17
-            chia = (self.chi1 - self.chi2)/2 # Eq. 2.18
-            Lhat = np.array([0,0,1])         # This is only valid at t_ref!!!
-            # Eqs. C1-C4
-            Enewt = -nu/2
-            E2 = -3/4 -nu/12
-            E3 = (8/3 -4*nu/3) * np.dot(chis,Lhat) + (8/3)*delta*np.dot(chia,Lhat)
-            E4 = -27/8 +19*nu/8 -(nu**2)/24 +nu*( np.dot(chis,chis)-np.dot(chia,chia) - 3* ( np.dot(chis,Lhat)**2 - np.dot(chia,Lhat)**2 )  ) \
-                  + (1/2 - nu) * ( np.dot(chis,chis) + np.dot(chia,chia) - 3* ( np.dot(chis,Lhat)**2 + np.dot(chia,Lhat)**2 )  ) \
-                  + delta * ( np.dot(chis,chia) - 3*np.dot(chis,Lhat)*np.dot(chia,Lhat))
-            v = omega**(1/3) # Usual PN velocity/frequency definition
+                # Estimate the energy emitted before the start of the surrogate waveform using a 2PN expression.
+                # Extract the orbital phase evolution from the surrogate
+                if self.t_ref==-4500: # This is the default value for NRSur7dq2, which wants a None
+                    dummy,phi,dummy,dummy=self.sur.get_dynamics(self.q,self.chi1,self.chi2,t_ref=None)
+                else:
+                    dummy,phi,dummy,dummy=self.sur.get_dynamics(self.q,self.chi1,self.chi2,t_ref=self.t_ref)
+                # Interpolate and derivate to find the orbital frequency as t_ref
+                omega = spline(self.sur.tds, phi).derivative()(self.t_ref)
+                # 2PN expression for the binding energy. Equations from Arun+ gr-qc/0810.5336v3 (note v3 because of an erratum!)
+                m1=self.q/(1+self.q)             # m1 is the heavy BH and q>1
+                m2=1/(1+self.q)                  # m2 is the light BH and q>1
+                nu = m1*m2                       # Eq. 2.12 with M=1
+                delta = m1-m2                    # Eq. 2.14 with M=1
+                chis = (self.chi1 + self.chi2)/2 # Eq. 2.17
+                chia = (self.chi1 - self.chi2)/2 # Eq. 2.18
+                Lhat = np.array([0,0,1])         # L at t_ref
+                # Eqs. C1-C4
+                Enewt = -nu/2
+                E2 = -3/4 -nu/12
+                E3 = (8/3 -4*nu/3) * np.dot(chis,Lhat) + (8/3)*delta*np.dot(chia,Lhat)
+                E4 = -27/8 +19*nu/8 -(nu**2)/24 +nu*( np.dot(chis,chis)-np.dot(chia,chia) - 3* ( np.dot(chis,Lhat)**2 - np.dot(chia,Lhat)**2 )  ) \
+                      + (1/2 - nu) * ( np.dot(chis,chis) + np.dot(chia,chia) - 3* ( np.dot(chis,Lhat)**2 + np.dot(chia,Lhat)**2 )  ) \
+                      + delta * ( np.dot(chis,chia) - 3*np.dot(chis,Lhat)*np.dot(chia,Lhat))
+                v = omega**(1/3) # Usual PN velocity/frequency definition
+                Ebinding = (Enewt*v**2) * (1+ E2*v**2 + E3*v**3 + E4*v**4) # Eq. 6.18
 
-            Ebinding = (Enewt*v**2) * (1+ E2*v**2 + E3*v**3 + E4*v**4) # Eq. 6.18
-
-
-            self._Eoft-=Ebinding
+                self._Eoft-=Ebinding
 
 
 
@@ -333,6 +335,20 @@ class surrkick(object):
         if self._Erad is None:
             self._Erad = self.Eoft[-1]
         return self._Erad
+
+    @property
+    def Moft(self):
+        ''' Mass profile in units of the mass at the beginning of the surrogate Mf/M=1-Erad.
+        Usage: Moft=surrkick.surrkick().Moft'''
+
+        return 1-self.Eoft
+
+    @property
+    def Mfin(self):
+        ''' Final mass in units of the mass at the beginning of the surrogate Mf/M=1-Erad.
+        Usage: Mfin=surrkick.surrkick().Mfin'''
+
+        return 1-self.Erad
 
     @property
     def dPdt(self):
@@ -377,7 +393,6 @@ class surrkick(object):
             P0 = np.array([spline(self.times[self.times<tend],v[self.times<tend]).antiderivative()(tend)/tbuffer  for v in np.transpose(self._Poft)])
             self._Poft-=P0
 
-
         return self._Poft
 
     @property
@@ -394,14 +409,19 @@ class surrkick(object):
         '''Velocity of the center of mass, i.e. minus the momentum radiated.
         Usage: voft=surrkick.surrkick().voft'''
 
-        return -self.Poft
+        if self._voft is None:
+            self._voft= np.array([-x/y for x,y in zip(self.Poft,self.Moft)])
+
+        return self._voft
 
     @property
     def kick(self):
         '''Final kick velocity, equal to the total linear momentum radiated.
         Usage: kick=surrkick.surrkick().kick'''
 
-        return self.Prad
+        if self._kick is None:
+            self._kick = np.linalg.norm(self.voft[-1])
+        return self._kick
 
     @property
     def kickcomp(self):
@@ -679,7 +699,7 @@ class plots(object):
 
             sk = surrkick(q=q , chi1=chi1,chi2=chi2)
             x0,y0,z0=sk.xoft[sk.times==min(abs(sk.times))][0]
-            x,y,z=np.transpose(sk.xoft[np.logical_and(sk.times>-4000,sk.times<26)])
+            x,y,z=np.transpose(sk.xoft[np.logical_and(sk.times>-4000,sk.times<25.5)])
             ax.plot(x-x0,y-y0,z-z0)
             ax.scatter(0,0,0,marker='.',s=60,alpha=0.5)
             x,y,z=np.transpose(sk.xoft)
@@ -767,7 +787,7 @@ class plots(object):
 
             sk = surrkick(q=q , chi1=chi1, chi2=chi2)
             x0,y0,z0=sk.xoft[sk.times==min(abs(sk.times))][0]
-            x,y,z=np.transpose(sk.xoft[np.logical_and(sk.times>-4500,sk.times<7.2)])
+            x,y,z=np.transpose(sk.xoft[np.logical_and(sk.times>-4500,sk.times<7)])
             ax.plot(x-x0,y-y0,z-z0)
             ax.scatter(0,0,0,marker='.',s=40,alpha=0.5)
             x,y,z=np.transpose(sk.xoft)
@@ -784,7 +804,7 @@ class plots(object):
             ax.set_zlim(0,0.011)
             ax.set_xticklabels(ax.get_xticks(), fontsize=9)
             ax.set_yticklabels(ax.get_yticks(), fontsize=9)
-            ax.set_zticklabels(ax.get_zticks(), fontsize=9)
+            ax.set_zticklabels(ax.get_ztick(), fontsize=9)
             fig.text(0.09,0.45,'$q='+str(q)+'$\n$\\boldsymbol{\\chi_1}=['+
                 str(round(chi1[0],2))+','+str(round(chi1[1],2))+','+str(round(chi1[2],2))+
                 ']$\n$\\boldsymbol{\\chi_2}=['+
@@ -1000,17 +1020,17 @@ class plots(object):
 
         figs=[]
         L=0.7
-        H=0.35
+        H=0.5
         S=0.05
         fig = plt.figure(figsize=(6,6))
         ax = fig.add_axes([0,0,L,H])
 
         q=0.5
         chimag=0.8
-        sks=[ surrkick(q=q,chi1=[0,0,chimag],chi2=[0,0,chimag],t_ref=-500),
-            surrkick(q=q,chi1=[0,0,-chimag],chi2=[0,0,-chimag],t_ref=-500),
-            surrkick(q=q,chi1=[0,0,chimag],chi2=[0,0,-chimag],t_ref=-500),
-            surrkick(q=q, chi1=[0,0,-chimag],chi2=[0,0,chimag],t_ref=-500),
+        sks=[ surrkick(q=q,chi1=[0,0,chimag],chi2=[0,0,chimag],t_ref=-4500),
+            surrkick(q=q,chi1=[0,0,-chimag],chi2=[0,0,-chimag],t_ref=-4500),
+            surrkick(q=q,chi1=[0,0,chimag],chi2=[0,0,-chimag],t_ref=-4500),
+            surrkick(q=q, chi1=[0,0,-chimag],chi2=[0,0,chimag],t_ref=-4500),
             surrkick(q=q, chi1=[0,0,0],chi2=[0,0,0],t_ref=-4500)]
 
         fks=[precession.finalmass(0,0,0,q,chimag/(1+q)**2,chimag*(q/(1+q))**2),
@@ -1019,15 +1039,14 @@ class plots(object):
             precession.finalmass(np.pi,0,0,q,chimag/(1+q)**2,chimag*(q/(1+q))**2),
             precession.finalmass(0,0,0,q,0,0)]
 
-
         labels=["$\chi_i\!=\!0.8$, up-up","$\chi_i\!=\!0.8$, down-down","$\chi_i\!=\!0.8$, up-down","$\chi_i\!=\!0.8$, down-up","$\chi_i=0$"]
         dashes=['',[15,5],[8,5],[2,2],[0.5,1]]
         cols=['C0','C1','C2','C3','black']
         for sk,fk,l,d,c in tqdm(zip(sks,fks,labels,dashes,cols)):
             ax.plot(sk.times,sk.Eoft,alpha=0.4,lw=1,c=c)
             ax.plot(sk.times,sk.Eoft,alpha=1,lw=2,c=c,dashes=d,label=l)
-            ax.axhline(1-fk,c=c,dashes=d)
-
+            #ax.axhline(1-fk,c=c,dashes=d)
+            #ax.axhline(sk.Erad,c=c,dashes=d)
 
         ax.legend(loc="upper left",fontsize=11,handlelength=5.5)
         ax.text(0.8,0.1,'$q='+str(q)+'$',transform=ax.transAxes,linespacing=1.4)
@@ -1035,7 +1054,7 @@ class plots(object):
         ax.yaxis.set_minor_locator(AutoMinorLocator())
         ax.xaxis.set_minor_locator(AutoMinorLocator())
         ax.set_xlabel("$t\;\;[M]$")
-        #ax.set_ylim(-0.01,0.08)
+        ax.set_ylim(-0.0,0.08)
         ax.set_ylabel("${E(t)} \;\;[M]$")
 
         return fig
@@ -1084,7 +1103,7 @@ class plots(object):
             for ax in [axs[-1]]:
                 ax.set_xlabel("$t\;\;[M]$")
             for ax,d in zip(axs,["x","y","z","v_k"]):
-                ax.set_ylim(-1.4,1.4)
+                ax.set_ylim(-1.5,1.5)
                 ax.set_ylabel("$\mathbf{v}(t) \cdot \mathbf{\hat "+d+"} \;\;[0.001c]$")
 
             figs.append(fig)
@@ -1218,7 +1237,7 @@ class plots(object):
 
         ax.axvline(0,c='black',alpha=0.3,ls='dotted')
         ax.axhline(0,c='black',alpha=0.3,ls='dotted')
-        alpha_vals=np.linspace(-np.pi,np.pi,50)
+        alpha_vals=np.linspace(-np.pi,np.pi,30)
         kick_vals=[]
         for i, alpha in enumerate(tqdm(alpha_vals)):
             sk = surrkick(q=1, chi1=[chimag*np.cos(alpha),chimag*np.sin(alpha),0],chi2=[-chimag*np.cos(alpha),-chimag*np.sin(alpha),0])
@@ -1342,7 +1361,7 @@ class plots(object):
         if not os.path.isfile(filename):
 
             def _explore(i):
-                print(' ',i)
+                #print(' ',i)
                 np.random.seed()
                 q=np.random.uniform(0.5,1)
                 phi = np.random.uniform(0,2*np.pi)
@@ -1362,21 +1381,27 @@ class plots(object):
                 deltaphi = np.random.uniform(0,2*np.pi)
                 dummy,dummy,dummy,S1,S2=precession.get_fixed(q,chi1m,chi2m)
                 fk=precession.finalkick(theta1,theta2,deltaphi,q,S1,S2,maxkick=False,kms=False,more=False)
-                return [sk.Erad,sk.kick,sk.Jrad,fk]
+                fe=1-precession.finalmass(theta1,theta2,deltaphi,q,S1,S2)
+
+                return [sk.Erad,sk.kick,sk.Jrad,fk,fe]
 
             print("Running in parallel on", multiprocessing.cpu_count(),"cores. Storing data:", filename)
             parmap = pathos.multiprocessing.ProcessingPool(multiprocessing.cpu_count()).imap
-            #data= list(tqdm(parmap(_explore, range(dim)),total=dim))
-            data= map(_explore, range(dim))
+            data= list(tqdm(parmap(_explore, range(dim)),total=dim))
+            #data= map(_explore, range(dim))
 
             with open(filename, 'wb') as f: pickle.dump(zip(*data), f)
-        with open(filename, 'rb') as f: Erad,kicks,Jrad,fk = pickle.load(f)
+        with open(filename, 'rb') as f: Erad,kicks,Jrad,fk,fe = pickle.load(f)
         kicks=np.array(kicks)
         fk=np.array(fk)
+        fe=np.array(fe)
 
         nbins=100
         axE.hist(Erad,bins=nbins,weights=np.ones_like(Erad)/dim,histtype='step',lw=2,alpha=0.8,color='C0',normed=True)
         axE.hist(Erad,bins=nbins,weights=np.ones_like(Erad)/dim,histtype='stepfilled',alpha=0.2,color='C0',normed=True)
+        axE.hist(fe,bins=nbins,weights=np.ones_like(Erad)/dim,histtype='step',lw=2,alpha=0.8,color='C3',normed=True)
+        axE.hist(fe,bins=nbins,weights=np.ones_like(Erad)/dim,histtype='stepfilled',alpha=0.2,color='C3',normed=True)
+
         for ax in [axv,axi]:
             ax.hist(1/0.001*fk,bins=nbins,weights=np.ones_like(Erad)/dim,histtype='step',lw=2,alpha=0.8,color='C3',label='Fitting formula',normed=True)
             ax.hist(1/0.001*fk,bins=nbins,weights=np.ones_like(Erad)/dim,histtype='stepfilled',alpha=0.2,color='C3',normed=True)
@@ -1832,102 +1857,10 @@ class plots(object):
         print("Time, both:", np.mean(timesall),'s')
 
 
-    @classmethod
-    @plottingstuff
-    def checkEdot(self):
-        '''Fig. 3. Energy radiated for binaries with aligned spins.
-        Usage: surrkick.plots.hangupErad()'''
-
-        figs=[]
-        L=0.7
-        H=0.35
-        S=0.05
-        fig = plt.figure(figsize=(6,6))
-        ax = fig.add_axes([0,0,L,H])
-
-        q=0.5
-        chimag=0.8
-        sks=[ surrkick(q=q,chi1=[0,0,chimag],chi2=[0,0,chimag]),
-            surrkick(q=q,chi1=[0,0,-chimag],chi2=[0,0,-chimag]),
-            surrkick(q=q,chi1=[0,0,chimag],chi2=[0,0,-chimag]),
-            surrkick(q=q, chi1=[0,0,-chimag],chi2=[0,0,chimag]),
-            surrkick(q=q, chi1=[0,0,0],chi2=[0,0,0])]
-        labels=["$\chi_i\!=\!0.8$, up-up","$\chi_i\!=\!0.8$, down-down","$\chi_i\!=\!0.8$, up-down","$\chi_i\!=\!0.8$, down-up","$\chi_i=0$"]
-        dashes=['',[15,5],[8,5],[2,2],[0.5,1]]
-        cols=['C0','C1','C2','C3','black']
-        for sk,l,d,c in tqdm(zip(sks,labels,dashes,cols)):
-            ax.plot(sk.times,sk.dEdt,alpha=0.4,lw=1,c=c)
-            ax.plot(sk.times,sk.dEdt,alpha=1,lw=2,c=c,dashes=d,label=l)
-
-            tbuffer=100
-            tend=sk.times[0]+tbuffer
-
-            Edot0 = spline(sk.times[sk.times<tend],sk.dEdt[sk.times<tend]).antiderivative()(tend)/tbuffer
-
-            ax.axhline(Edot0,c=c,ls='dotted')
-
-        #ax.legend(loc="upper left",fontsize=11,handlelength=5.5)
-        #ax.text(0.8,0.1,'$q='+str(q)+'$',transform=ax.transAxes,linespacing=1.4)
-        ax.set_xlim(-4500,-4400)
-        ax.yaxis.set_minor_locator(AutoMinorLocator())
-        ax.xaxis.set_minor_locator(AutoMinorLocator())
-        ax.set_xlabel("$t\;\;[M]$")
-        ax.set_ylim(0,0.000001)
-        ax.set_ylabel("${dE(t)/dt}$")
-
-        return fig
-
-    @classmethod
-    @plottingstuff
-    def minimal2(self):
-        '''Minimal working example.
-        Usage: surrkick.plots.minimal()'''
-
-        fig = plt.figure(figsize=(6,6))
-        ax = fig.add_axes([0,0,1,1])
-        sk=surrkick(q=0.5,chi1=[0.8,0,0], chi2=[-0.8,0,0])
-        print("vk/c=", sk.kick)
-        ax.plot(sk.times,sk.voft[:,0],label="x")
-        ax.plot(sk.times,sk.voft[:,1],label="y")
-        ax.plot(sk.times,sk.voft[:,2],label="z")
-        ax.plot(sk.times,project(sk.voft,sk.kickdir),label="vk")
-        ax.set_xlim(-4500,-3500)
-        ax.set_ylim(-1e-5,1e-5)
-        ax.legend()
-
-        return fig
-
-
-    @classmethod
-    @plottingstuff
-    def orbphase(self):
-        '''Minimal working example.
-        Usage: surrkick.plots.minimal()'''
-
-        fig = plt.figure(figsize=(6,6))
-        ax = fig.add_axes([0,0,1,1])
-
-        q=1
-        chi1=np.array([0,0,0])
-        chi2=np.array([0,0,0])
-        sk=surrkick(q,chi1,chi2)
-        #sur=surrogate().sur()
-        dummy,phi,dummy,dummy=sk.sur.get_dynamics(q,chi2,chi2)
-        #ax.plot(sk.sur.tds,phi)
-
-        omega = spline(sk.sur.tds, phi).derivative()(sk.times[0])
-
-        print(omega)
-
-        ax.plot(sk.times,omega)
-        ax.set_xlabel('$t$')
-        ax.set_ylabel('$\\omega$')
-        #print(sur.tds)
-        return fig
-
 
 
 ########################################
 if __name__ == "__main__":
     pass
-    plots.hangupErad()
+    plots.findlarge()
+    plots.explore()
