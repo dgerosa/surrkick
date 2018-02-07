@@ -1549,7 +1549,7 @@ class plots(object):
         for axx,kick in zip(ax,kicks):
             axx.hist(1/0.001*np.abs(kick),bins=nbins,histtype='step',lw=2,alpha=1,color='C4',normed=True)
             axx.hist(1/0.001*np.abs(kick),bins=nbins,histtype='stepfilled',alpha=0.3,color='C4',normed=True)
-            print(np.percentile(1/0.001*np.abs(kick), 50),np.percentile(1/0.001*np.abs(kick), 90))
+            #print(np.percentile(1/0.001*np.abs(kick), 50),np.percentile(1/0.001*np.abs(kick), 90))
             axx.axvline(np.percentile(1/0.001*np.abs(kick), 50),c='gray',ls='dashed')
             axx.axvline(np.percentile(1/0.001*np.abs(kick), 90),c='gray',ls='dotted')
 
@@ -1862,5 +1862,4 @@ class plots(object):
 ########################################
 if __name__ == "__main__":
     pass
-    plots.findlarge()
-    plots.explore()
+    plots.recoil()
