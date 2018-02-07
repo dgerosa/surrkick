@@ -86,5 +86,5 @@ The source code for the `surrkick.plots.minimal()` method mentioned above is
     plt.legend()
     plt.show()
 
-If you try it, you should get a printout that reads `vk/c= 0.0037...` and this plot:
+If you try it, you should get a printout that reads `vk/c= 0.00387...` and this plot:
 ![minimal](https://user-images.githubusercontent.com/7237041/35894834-7f84c500-0b69-11e8-99bd-bc4faa738fda.png)
