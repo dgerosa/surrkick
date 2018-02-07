@@ -147,6 +147,9 @@ class surrkick(object):
         self._dEdt = None
         self._Eoft = None
         self._Erad = None
+        self._Moft = None
+        self._Mrad = None
+        self._Mfin = None
         self._dPdt = None
         self._Poft = None
         self._Prad = None
@@ -338,17 +341,35 @@ class surrkick(object):
 
     @property
     def Moft(self):
-        ''' Mass profile in units of the mass at the beginning of the surrogate Mf/M=1-Erad.
+        ''' Mass profile in units of the mass at the beginning of the surrogate.
         Usage: Moft=surrkick.surrkick().Moft'''
 
-        return 1-self.Eoft
+        if self._Moft is None:
+            self._Moft = 1-self.Eoft+self.Eoft[0]
+
+        return self._Moft
+
+    @property
+    def Mrad(self):
+        ''' Final mass in units of the mass at the beginning of the surrogate.
+        Usage: Mrad=surrkick.surrkick().Mrad'''
+
+        if self._Mrad is None:
+            self._Mrad = self.Moft[-1]
+
+        return self._Mrad
 
     @property
     def Mfin(self):
-        ''' Final mass in units of the mass at the beginning of the surrogate Mf/M=1-Erad.
+        ''' Final mass in units of the mass at the early times (t=-infinity).
         Usage: Mfin=surrkick.surrkick().Mfin'''
 
-        return 1-self.Erad
+        if self._Mfin is None:
+            self._Mfin = 1 - self.Eoft[-1]/(1+self.Eoft[0])
+
+        return self._Mfin
+
+
 
     @property
     def dPdt(self):
@@ -587,8 +608,9 @@ class plots(object):
             except:
                 figs=[figs]
 
+            figs=[[1,2,3],[1,2,3],[1,2,3]]
+
             for j,fig in enumerate(tqdm(figs)):
-                print(j)
 
                 if fig != [None]:
 
@@ -597,8 +619,9 @@ class plots(object):
                         with warnings.catch_warnings():
                             warnings.simplefilter(action='ignore', category=FutureWarning)
                             framename = function.__name__+"_"+str(j)+"_"+"%05d.png"%i
-                            f.savefig(framename, bbox_inches='tight',format='png',dpi = 300)
-                            f.clf()
+                            #f.savefig(framename, bbox_inches='tight',format='png',dpi = 300)
+                            #f.clf()
+                            #plt.close(f)
 
                     rate = 100 #The movie is faster if this number is large
                     command ='ffmpeg -r '+str(rate)+' -i '+function.__name__+'_'+str(j)+'_'+'%05d.png -vcodec libx264 -crf 18 -y -an '+function.__name__+'_'+str(j)+'.mp4 -vf "scale=trunc(iw/2)*2:trunc(ih/2)*2"'
@@ -835,6 +858,7 @@ class plots(object):
 
         tnew=np.linspace(-4500,100,4601)
         tnew=np.append(tnew,np.ones(100)*tnew[-1])
+        #tnew=tnew[::100]
 
         # Left panel
         if leftpanel:
@@ -1381,7 +1405,7 @@ class plots(object):
                 deltaphi = np.random.uniform(0,2*np.pi)
                 dummy,dummy,dummy,S1,S2=precession.get_fixed(q,chi1m,chi2m)
                 fk=precession.finalkick(theta1,theta2,deltaphi,q,S1,S2,maxkick=False,kms=False,more=False)
-                fe=1-precession.finalmass(theta1,theta2,deltaphi,q,S1,S2)
+                fe=(1-precession.finalmass(theta1,theta2,deltaphi,q,S1,S2))*(1+sk.Eoft[0])
 
                 return [sk.Erad,sk.kick,sk.Jrad,fk,fe]
 
@@ -1862,4 +1886,4 @@ class plots(object):
 ########################################
 if __name__ == "__main__":
     pass
-    plots.recoil()
+    plots.explore()
