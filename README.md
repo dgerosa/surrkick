@@ -49,7 +49,9 @@ The core of the code consists of a single class, surrkick, whose methods allow t
 - `hdot(l,m)`: Modes of the time derivative of the GW strain.                           
 - `dEdt`: Energy flux dE/dt.    
 - `Eoft`: Radiated energy profile E(t).                                                                              
-- `Erad`: Total radiated energy.                                                               
+- `Erad`: Total radiated energy.
+- `Moft`: Mass profile M(t).
+- `Mfin`: Mass of the remnant BH.
 - `dPdt`: Linear momentum flux dP/dt.
 - `Poft`: Radiated linear momentum profile P(t).                                                       
 - `Prad`: Total radiated linear momentum.                               
