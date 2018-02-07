@@ -49,7 +49,9 @@ The core of the code consists of a single class, surrkick, whose methods allow t
 - `hdot(l,m)`: Modes of the time derivative of the GW strain.                           
 - `dEdt`: Energy flux dE/dt.    
 - `Eoft`: Radiated energy profile E(t).                                                                              
-- `Erad`: Total radiated energy.                                                               
+- `Erad`: Total radiated energy.
+- `Moft`: Mass profile M(t).
+- `Mfin`: Mass of the remnant BH.
 - `dPdt`: Linear momentum flux dP/dt.
 - `Poft`: Radiated linear momentum profile P(t).                                                       
 - `Prad`: Total radiated linear momentum.                               
@@ -84,5 +86,5 @@ The source code for the `surrkick.plots.minimal()` method mentioned above is
     plt.legend()
     plt.show()
 
-If you try it, you should get a printout that reads `vk/c= 0.0037...` and this plot:
-![minimal](https://user-images.githubusercontent.com/7237041/35545942-7461b064-0526-11e8-8e9a-5bff25599fb7.png)
+If you try it, you should get a printout that reads `vk/c= 0.00387...` and this plot:
+![minimal](https://user-images.githubusercontent.com/7237041/35894834-7f84c500-0b69-11e8-99bd-bc4faa738fda.png)
