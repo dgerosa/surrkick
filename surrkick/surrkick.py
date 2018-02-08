@@ -1612,8 +1612,8 @@ class plots(object):
         fig = plt.figure(figsize=(6,6))
         ax = fig.add_axes([0,0,1.25,0.6])
 
-        nr100 = np.loadtxt(os.path.dirname(__file__)+"/"+"nr_comparison_data/nr_kicks_t100.dat")
-        nr4500 = np.loadtxt(os.path.dirname(__file__)+"/"+"nr_comparison_data/nr_kicks_t4500.dat")
+        nr100 = np.loadtxt(os.path.dirname(os.path.abspath(__file__))+"/"+"nr_comparison_data/nr_kicks_t100.dat")
+        nr4500 = np.loadtxt(os.path.dirname(os.path.abspath(__file__))+"/"+"nr_comparison_data/nr_kicks_t4500.dat")
 
         def _nr_surr_comparison_data_helper(nr_data, t):
             kicks = []
@@ -1686,7 +1686,7 @@ class plots(object):
         axt = fig.add_axes([0, main_h + gap, main_w, hist_h])
         axr = fig.add_axes([main_w + gap, 0, hist_h, main_h])
 
-        nr4500 = np.loadtxt(os.path.dirname(__file__)+"/"+"nr_comparison_data/nr_kicks_t4500.dat")
+        nr4500 = np.loadtxt(os.path.dirname(os.path.abspath(__file__))+"/"+"nr_comparison_data/nr_kicks_t4500.dat")
 
         # duplicated from histogram plot
         def _nr_surr_comparison_data_helper(nr_data, t):
@@ -1781,7 +1781,7 @@ class plots(object):
         ax_ul = fig.add_axes([0, h + gap, w, h])
 
         # duplicated from histogram plot
-        basename = os.path.dirname(__file__)+"/"+"nr_comparison_data/profile_case_id_"
+        basename = os.path.dirname(os.path.abspath(__file__))+"/"+"nr_comparison_data/profile_case_id_"
         cases = ["0021", "0283", "0353", "3144"]
         filename = "nr_comparison_profiles.pkl"
         if not os.path.isfile(filename):
