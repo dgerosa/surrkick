@@ -1828,8 +1828,8 @@ class plots(object):
         ax_ul.legend(loc = "lower right")
         ax_ll.set_xlabel("$t\;\;[M]$")
         ax_lr.set_xlabel("$t\;\;[M]$")
-        ax_ll.set_ylabel("$\mathbf{v}(t) \cdot \mathbf{\hat v_k} \;\;[0.001c]$")
-        ax_ul.set_ylabel("$\mathbf{v}(t) \cdot \mathbf{\hat v_k} \;\;[0.001c]$")
+        ax_ll.set_ylabel("$- \mathbf{P}(t) \cdot \mathbf{\hat v_k} \;\;[0.001 M]$")
+        ax_ul.set_ylabel("$- \mathbf{P}(t) \cdot \mathbf{\hat v_k} \;\;[0.001 M]$")
 
         return fig
 
