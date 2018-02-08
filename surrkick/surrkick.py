@@ -1606,14 +1606,13 @@ class plots(object):
     @classmethod
     @plottingstuff
     def nr_comparison_histograms(self):
-        '''Fig. 12. Comparison with SpEC simulations, sources of error.
+        '''Fig. 12. Comparison with SPeC simulations, sources of error.
         Usage: surrkick.plots.nr_comparison_histograms()'''
 
         fig = plt.figure(figsize=(6,6))
         ax = fig.add_axes([0,0,1.25,0.6])
-
-        nr100 = np.loadtxt(os.path.dirname(__file__)+"/"+"nr_comparison_data/nr_kicks_t100.dat")
-        nr4500 = np.loadtxt(os.path.dirname(__file__)+"/"+"nr_comparison_data/nr_kicks_t4500.dat")
+        nr100 = np.loadtxt(os.path.dirname(os.path.abspath(__file__))+"/"+"nr_comparison_data/nr_kicks_t100.dat")
+        nr4500 = np.loadtxt(os.path.dirname(os.path.abspath(__file__))+"/"+"nr_comparison_data/nr_kicks_t4500.dat")
 
         def _nr_surr_comparison_data_helper(nr_data, t):
             kicks = []
@@ -1659,6 +1658,20 @@ class plots(object):
         ax.hist(delta_surr_times, bins=logbins, histtype='step', label="$\Delta v_k$ Surr $t_{\\rm ref}/M\!=\!-100$ vs.  $\!-4500$",color='C2',lw=1.8)
         ax.hist(delta_nr_lmax, bins=logbins, histtype='step', label="$\Delta v_k$ NR $l_{\\rm max}\!=\!8$ vs. $4$",color='C4',lw=1.8)
 
+        # flip some curves for visual clarity (?)
+        #ax.plot([0,20], [0,0], color='k')
+        #n, b, patches = ax.hist(delta_nr_levs, bins=logbins, histtype='step', label="NR lev 3 vs. 2")
+        #for p in patches:
+        #    xy = p.get_xy()
+        #    xy[:,1] = -xy[:,1]
+        #    p.set_xy(xy)
+        #n, b, patches = ax.hist(delta_nr_lmax, bins=logbins, histtype='step', label="NR $l_{\mathrm{max}}$ 8 vs. 4")
+        #for p in patches:
+        #    xy = p.get_xy()
+        #    xy[:,1] = -xy[:,1]
+        #    p.set_xy(xy)
+        #ax.set_ylim(-100,150)
+
         ax.legend(loc=2, ncol=1, fontsize=14).set_zorder(100)
         ax.set_xscale("log")
         ax.set_xlabel("$v_k\;\;[0.001c]$")
@@ -1673,7 +1686,7 @@ class plots(object):
     @classmethod
     @plottingstuff
     def nr_comparison_scatter(self):
-        '''Fig. 13. Comparison with SpEC simulations, percentiles.
+        '''Fig. 13. Comparison with SPeC simulations, percentiles.
         Usage: surrkick.plots.nr_comparison_scatter()'''
 
         main_w = 0.6
@@ -1686,7 +1699,7 @@ class plots(object):
         axt = fig.add_axes([0, main_h + gap, main_w, hist_h])
         axr = fig.add_axes([main_w + gap, 0, hist_h, main_h])
 
-        nr4500 = np.loadtxt(os.path.dirname(__file__)+"/"+"nr_comparison_data/nr_kicks_t4500.dat")
+        nr4500 = np.loadtxt(os.path.dirname(os.path.abspath(__file__))+"/"+"nr_comparison_data/nr_kicks_t4500.dat")
 
         # duplicated from histogram plot
         def _nr_surr_comparison_data_helper(nr_data, t):
@@ -1768,7 +1781,7 @@ class plots(object):
     @classmethod
     @plottingstuff
     def nr_comparison_profiles(self):
-        '''Fig. 14. Comparison with SpEC simulations, time profiles.
+        '''Fig. 14. Comparison with SPeC simulations, time profiles.
         Usage: surrkick.plots.nr_comparison_profiles()'''
 
         w = 0.8
@@ -1781,7 +1794,7 @@ class plots(object):
         ax_ul = fig.add_axes([0, h + gap, w, h])
 
         # duplicated from histogram plot
-        basename = os.path.dirname(__file__)+"/"+"nr_comparison_data/profile_case_id_"
+        basename = os.path.dirname(os.path.abspath(__file__))+"/"+"nr_comparison_data/profile_case_id_"
         cases = ["0021", "0283", "0353", "3144"]
         filename = "nr_comparison_profiles.pkl"
         if not os.path.isfile(filename):
@@ -1794,8 +1807,10 @@ class plots(object):
                     chi2 = p["surrogate-dimensionless-spin2"]
                     sk = surrkick(q=q, chi1=chi1, chi2=chi2, t_ref=-4500)
                     ts = sk.times
-                    ps = - project(sk.Poft, sk.kickdir)
-                    surr_profiles[case] = [ts, ps]
+                    ps = sk.Poft
+                    ns = sk.kickdir
+                    kns = - (ns[0]*ps[:,0] + ns[1]*ps[:,1] + ns[2]*ps[:,2])
+                    surr_profiles[case] = [ts, kns]
             print("Storing data:", filename)
             with open(filename, 'wb') as f: pickle.dump(surr_profiles, f)
         with open(filename, 'rb') as f: surr_data = pickle.load(f)
@@ -1803,12 +1818,12 @@ class plots(object):
         axes = [ax_ll, ax_lr, ax_ur, ax_ul]
         for ax, case in zip(axes, cases):
             nr_data = np.loadtxt(basename+case+"/radiated_p.dat")
-            tn = nr_data[:,0]
-            pn = - nr_data[:,1] / 0.001
+            t = nr_data[:,0]
+            kn = - nr_data[:,1] / 0.001
             ts = surr_data[case][0]
-            ps = surr_data[case][1] / 0.001
-            ax.plot(tn, pn, label = "NR",lw=2, color='C3',dashes=[8,4])
-            ax.plot(ts, ps, label = "Surrogate",lw=2,color='C0')
+            kns = surr_data[case][1] / 0.001
+            ax.plot(t, kn, label = "NR",lw=2, color='C3',dashes=[8,4])
+            ax.plot(ts, kns, label = "Surrogate",lw=2,color='C0')
 
             with open(basename+case+"/params.json", 'r') as f:
                 p = json.load(f)
@@ -1829,8 +1844,8 @@ class plots(object):
         ax_ul.legend(loc = "lower right")
         ax_ll.set_xlabel("$t\;\;[M]$")
         ax_lr.set_xlabel("$t\;\;[M]$")
-        ax_ll.set_ylabel("$- \mathbf{P}(t) \cdot \mathbf{\hat v_k} \;\;[0.001 M]$")
-        ax_ul.set_ylabel("$- \mathbf{P}(t) \cdot \mathbf{\hat v_k} \;\;[0.001 M]$")
+        ax_ll.set_ylabel("$\mathbf{v}(t) \cdot \mathbf{\hat v_k} \;\;[0.001c]$")
+        ax_ul.set_ylabel("$\mathbf{v}(t) \cdot \mathbf{\hat v_k} \;\;[0.001c]$")
 
         return fig
 
@@ -1883,5 +1898,8 @@ class plots(object):
 
 ########################################
 if __name__ == "__main__":
+
     pass
-    plots.recoil()
+    plots.nr_comparison_histograms()
+    plots.nr_comparison_scatter()
+    plots.nr_comparison_profiles()
