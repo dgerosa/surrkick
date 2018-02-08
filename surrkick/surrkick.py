@@ -609,7 +609,9 @@ class plots(object):
             except:
                 figs=[figs]
 
-            #figs=[[1,2,3],[1,2,3],[1,2,3]]
+            econdeonly=False # if you already have the frames and want to test encoding options
+            if econdeonly:
+                figs=[[1,2,3],[1,2,3],[1,2,3]]
 
             for j,fig in enumerate(tqdm(figs)):
 
@@ -620,7 +622,7 @@ class plots(object):
                         with warnings.catch_warnings():
                             warnings.simplefilter(action='ignore', category=FutureWarning)
                             framename = function.__name__+"_"+str(j)+"_"+"%05d.png"%i
-                            if True:
+                            if econdeonly:
                                 f.savefig(framename, bbox_inches='tight',format='png',dpi = 300)
                                 f.clf()
                                 plt.close(f)
@@ -1071,8 +1073,7 @@ class plots(object):
         for sk,fk,l,d,c in tqdm(zip(sks,fks,labels,dashes,cols)):
             ax.plot(sk.times,sk.Eoft,alpha=0.4,lw=1,c=c)
             ax.plot(sk.times,sk.Eoft,alpha=1,lw=2,c=c,dashes=d,label=l)
-            #ax.axhline(1-fk,c=c,dashes=d)
-            #ax.axhline(sk.Erad,c=c,dashes=d)
+            #ax.axhline((1-fk)*(1+sk.Eoft[0]),c=c,dashes=d)
 
         ax.legend(loc="upper left",fontsize=11,handlelength=5.5)
         ax.text(0.8,0.1,'$q='+str(q)+'$',transform=ax.transAxes,linespacing=1.4)
@@ -1389,7 +1390,7 @@ class plots(object):
         axJ= fig.add_axes([H+S-0.02,0,L,(H-S)/2])
         axi = fig.add_axes([H-Li-s,H-Hi-0.15,Li,Hi])
 
-        dim=int(1e6)
+        dim=int(1e4)
 
         filename='explore.pkl'
         if not os.path.isfile(filename):
@@ -1885,6 +1886,4 @@ class plots(object):
 if __name__ == "__main__":
 
     pass
-    plots.nr_comparison_histograms()
-    plots.nr_comparison_scatter()
-    plots.nr_comparison_profiles()
+    plots.hangupErad()
