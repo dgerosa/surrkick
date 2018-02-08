@@ -3,7 +3,7 @@
 surrkick is a python module to extract radiated energy and momenta from waveform approximants.
 The present version of the code uses the numerical-relativity surrogate model NRSur7dq2.
 
-More info on the code available in our paper and at https://davidegerosa.com/surrkick/
+More info on the code available in our paper (Gerosa, Hebert, Stein 2018) and at https://davidegerosa.com/surrkick/
 Surrkick is distributed through the Python Package index (https://pypi.python.org/pypi/surrkick)
 and GitHub (https://github.com/dgerosa/surrkick).
 '''
@@ -30,7 +30,7 @@ import json
 __author__ = "Davide Gerosa, Francois Hebert"
 __email__ = "dgerosa@caltech.edu"
 __license__ = "MIT"
-__version__ = "1.0.0"
+__version__ = "1.0.1"
 __doc__+="\n\n"+"Authors: "+__author__+"\n"+\
         "email: "+__email__+"\n"+\
         "Licence: "+__license__+"\n"+\
@@ -603,14 +603,14 @@ class plots(object):
             from matplotlib.backends.backend_pdf import PdfPages
             from matplotlib.ticker import AutoMinorLocator,MultipleLocator
 
-            figs = function(self)
-            try:
-                len(figs[0])
-            except:
-                figs=[figs]
-
-            econdeonly=False # if you already have the frames and want to test encoding options
-            if econdeonly:
+            encodeonly=False # if you already have the frames and want to test encoding options
+            if not encodeonly:
+                figs = function(self)
+                try:
+                    len(figs[0])
+                except:
+                    figs=[figs]
+            else:
                 figs=[[1,2,3],[1,2,3],[1,2,3]]
 
             for j,fig in enumerate(tqdm(figs)):
@@ -622,7 +622,7 @@ class plots(object):
                         with warnings.catch_warnings():
                             warnings.simplefilter(action='ignore', category=FutureWarning)
                             framename = function.__name__+"_"+str(j)+"_"+"%05d.png"%i
-                            if econdeonly:
+                            if not encodeonly:
                                 f.savefig(framename, bbox_inches='tight',format='png',dpi = 300)
                                 f.clf()
                                 plt.close(f)
@@ -635,7 +635,6 @@ class plots(object):
                     if False:
                         command="rm -f "+function.__name__+"_"+str(j)+"*.png temp"
                         os.system(command)
-
 
         return wrapper
 
@@ -1073,7 +1072,7 @@ class plots(object):
         for sk,fk,l,d,c in tqdm(zip(sks,fks,labels,dashes,cols)):
             ax.plot(sk.times,sk.Eoft,alpha=0.4,lw=1,c=c)
             ax.plot(sk.times,sk.Eoft,alpha=1,lw=2,c=c,dashes=d,label=l)
-            #ax.axhline((1-fk)*(1+sk.Eoft[0]),c=c,dashes=d)
+                #ax.axhline((1-fk)*(1+sk.Eoft[0]),c=c,dashes=d)
 
         ax.legend(loc="upper left",fontsize=11,handlelength=5.5)
         ax.text(0.8,0.1,'$q='+str(q)+'$',transform=ax.transAxes,linespacing=1.4)
@@ -1390,7 +1389,7 @@ class plots(object):
         axJ= fig.add_axes([H+S-0.02,0,L,(H-S)/2])
         axi = fig.add_axes([H-Li-s,H-Hi-0.15,Li,Hi])
 
-        dim=int(1e4)
+        dim=int(1e6)
 
         filename='explore.pkl'
         if not os.path.isfile(filename):
@@ -1417,7 +1416,6 @@ class plots(object):
                 dummy,dummy,dummy,S1,S2=precession.get_fixed(q,chi1m,chi2m)
                 fk=precession.finalkick(theta1,theta2,deltaphi,q,S1,S2,maxkick=False,kms=False,more=False)
                 fe=(1-precession.finalmass(theta1,theta2,deltaphi,q,S1,S2))*(1+sk.Eoft[0])
-
                 return [sk.Erad,sk.kick,sk.Jrad,fk,fe]
 
             print("Running in parallel on", multiprocessing.cpu_count(),"cores. Storing data:", filename)
@@ -1432,10 +1430,14 @@ class plots(object):
         fe=np.array(fe)
 
         nbins=100
-        axE.hist(Erad,bins=nbins,weights=np.ones_like(Erad)/dim,histtype='step',lw=2,alpha=0.8,color='C0',normed=True)
-        axE.hist(Erad,bins=nbins,weights=np.ones_like(Erad)/dim,histtype='stepfilled',alpha=0.2,color='C0',normed=True)
         axE.hist(fe,bins=nbins,weights=np.ones_like(Erad)/dim,histtype='step',lw=2,alpha=0.8,color='C3',normed=True)
         axE.hist(fe,bins=nbins,weights=np.ones_like(Erad)/dim,histtype='stepfilled',alpha=0.2,color='C3',normed=True)
+        axE.hist(Erad,bins=nbins,weights=np.ones_like(Erad)/dim,histtype='step',lw=2,alpha=0.8,color='C0',normed=True)
+        axE.hist(Erad,bins=nbins,weights=np.ones_like(Erad)/dim,histtype='stepfilled',alpha=0.2,color='C0',normed=True)
+
+        print("surr", np.median(Erad), np.std(Erad))
+        print("fit", np.median(fe), np.std(fe))
+
 
         for ax in [axv,axi]:
             ax.hist(1/0.001*fk,bins=nbins,weights=np.ones_like(Erad)/dim,histtype='step',lw=2,alpha=0.8,color='C3',label='Fitting formula',normed=True)
@@ -1576,11 +1578,6 @@ class plots(object):
                 chi2 = [-chi1[0],-chi1[1],chi1[2]]
                 kicks[2].append(np.linalg.norm(np.cross(surrkick(q=q,chi1=chi1,chi2=chi2).kickcomp,[0,0,1])))
 
-
-
-
-            print("Storing datxa:", filename)
-
             with open(filename, 'wb') as f: pickle.dump(kicks, f)
         with open(filename, 'rb') as f: kicks = pickle.load(f)
 
@@ -1588,7 +1585,7 @@ class plots(object):
         for axx,kick in zip(ax,kicks):
             axx.hist(1/0.001*np.abs(kick),bins=nbins,histtype='step',lw=2,alpha=1,color='C4',normed=True)
             axx.hist(1/0.001*np.abs(kick),bins=nbins,histtype='stepfilled',alpha=0.3,color='C4',normed=True)
-            print(np.percentile(1/0.001*np.abs(kick), 50),np.percentile(1/0.001*np.abs(kick), 90))
+            #print(np.percentile(1/0.001*np.abs(kick), 50),np.percentile(1/0.001*np.abs(kick), 90))
             axx.axvline(np.percentile(1/0.001*np.abs(kick), 50),c='gray',ls='dashed')
             axx.axvline(np.percentile(1/0.001*np.abs(kick), 90),c='gray',ls='dotted')
 
@@ -1655,7 +1652,7 @@ class plots(object):
         ax.hist(mag_nr, bins=logbins, histtype='step', alpha=0.8,color='C3',lw=1.8)
         ax.hist(mag_surr, bins=logbins, histtype='step',alpha=0.8, color='C0',lw=1.8)
         ax.hist(delta_nr_surr, bins=logbins, histtype='step', label="$\Delta v_k$ NR vs. Surrogate",color='black',ls='dashed',lw=2,zorder=20)
-        print(np.percentile(delta_nr_surr, 90))
+        #print(np.percentile(delta_nr_surr, 90))
         ax.hist(delta_nr_levs, bins=logbins, histtype='step', label="$\Delta v_k$ NR resolution", color='C1',lw=1.8)
         ax.hist(delta_surr_times, bins=logbins, histtype='step', label="$\Delta v_k$ Surr $t_{\\rm ref}/M\!=\!-100$ vs.  $\!-4500$",color='C2',lw=1.8)
         ax.hist(delta_nr_lmax, bins=logbins, histtype='step', label="$\Delta v_k$ NR $l_{\\rm max}\!=\!8$ vs. $4$",color='C4',lw=1.8)
@@ -1886,4 +1883,4 @@ class plots(object):
 if __name__ == "__main__":
 
     pass
-    plots.hangupErad()
+    plots.minimal()
