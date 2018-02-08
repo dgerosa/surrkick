@@ -582,7 +582,7 @@ class plots(object):
 
         #def wrapper(*args, **kw):
         def wrapper(self):
-            print("Animation:", function.__name__+".mpg/h264")
+            print("Animation:", function.__name__+".mp4")
 
             # Before function call
             global plt,AutoMinorLocator,MultipleLocator
@@ -609,7 +609,7 @@ class plots(object):
             except:
                 figs=[figs]
 
-            figs=[[1,2,3],[1,2,3],[1,2,3]]
+            #figs=[[1,2,3],[1,2,3],[1,2,3]]
 
             for j,fig in enumerate(tqdm(figs)):
 
@@ -620,9 +620,10 @@ class plots(object):
                         with warnings.catch_warnings():
                             warnings.simplefilter(action='ignore', category=FutureWarning)
                             framename = function.__name__+"_"+str(j)+"_"+"%05d.png"%i
-                            #f.savefig(framename, bbox_inches='tight',format='png',dpi = 300)
-                            #f.clf()
-                            #plt.close(f)
+                            if True:
+                                f.savefig(framename, bbox_inches='tight',format='png',dpi = 300)
+                                f.clf()
+                                plt.close(f)
 
                     rate = 100 #The movie is faster if this number is large
                     command ='ffmpeg -r '+str(rate)+' -i '+function.__name__+'_'+str(j)+'_'+'%05d.png -vcodec libx264 -crf 18 -y -an '+function.__name__+'_'+str(j)+'.mp4 -vf "scale=trunc(iw/2)*2:trunc(ih/2)*2"'
@@ -1899,4 +1900,4 @@ class plots(object):
 ########################################
 if __name__ == "__main__":
     pass
-    plots.timing()
+    plots.recoil()
