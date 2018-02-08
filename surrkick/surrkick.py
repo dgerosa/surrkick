@@ -344,6 +344,7 @@ class surrkick(object):
         ''' Mass profile in units of the mass at the beginning of the surrogate.
         Usage: Moft=surrkick.surrkick().Moft'''
 
+
         if self._Moft is None:
             self._Moft = 1-self.Eoft+self.Eoft[0]
 
@@ -368,8 +369,6 @@ class surrkick(object):
             self._Mfin = 1 - self.Eoft[-1]/(1+self.Eoft[0])
 
         return self._Mfin
-
-
 
     @property
     def dPdt(self):
@@ -423,11 +422,12 @@ class surrkick(object):
 
         if self._Prad is None:
             self._Prad = np.linalg.norm(self.Poft[-1])
+
         return self._Prad
 
     @property
     def voft(self):
-        '''Velocity of the center of mass, i.e. minus the momentum radiated.
+        '''Velocity of the center of mass, i.e. minus the momentum radiated over mass.
         Usage: voft=surrkick.surrkick().voft'''
 
         if self._voft is None:
@@ -437,11 +437,12 @@ class surrkick(object):
 
     @property
     def kick(self):
-        '''Final kick velocity, equal to the total linear momentum radiated.
+        '''Final kick velocity.
         Usage: kick=surrkick.surrkick().kick'''
 
         if self._kick is None:
             self._kick = np.linalg.norm(self.voft[-1])
+
         return self._kick
 
     @property
@@ -827,7 +828,7 @@ class plots(object):
             ax.set_zlim(0,0.011)
             ax.set_xticklabels(ax.get_xticks(), fontsize=9)
             ax.set_yticklabels(ax.get_yticks(), fontsize=9)
-            ax.set_zticklabels(ax.get_ztick(), fontsize=9)
+            ax.set_zticklabels(ax.get_zticks(), fontsize=9)
             fig.text(0.09,0.45,'$q='+str(q)+'$\n$\\boldsymbol{\\chi_1}=['+
                 str(round(chi1[0],2))+','+str(round(chi1[1],2))+','+str(round(chi1[2],2))+
                 ']$\n$\\boldsymbol{\\chi_2}=['+
@@ -1115,6 +1116,7 @@ class plots(object):
                 axs[2].plot(sk.times,1./0.001*project(sk.voft,[0,0,1]),alpha=1,lw=2,c=c,dashes=d,label=l)
                 axs[3].plot(sk.times,1./0.001*project(sk.voft,sk.kickdir),alpha=0.4,lw=1,c=c)
                 axs[3].plot(sk.times,1./0.001*project(sk.voft,sk.kickdir),alpha=1,lw=2,c=c,dashes=d)
+
             axs[2].legend(loc="lower left",fontsize=14,ncol=2,handlelength=3.86)
             axs[0].text(0.05,0.7,'$q='+str(q)+'$\n$\chi_1=\chi_2=0.8$',transform=axs[    0].transAxes,linespacing=1.4)
             for ax in axs:
@@ -1338,14 +1340,21 @@ class plots(object):
         chimag=0.8
         sk= surrkick(q=q,chi1=[0,0,chimag],chi2=[0,0,-chimag],t_ref=-100)
         dim=15
-        store=[]
-        for i in tqdm(np.linspace(0,1,dim)):
-            phi = np.random.uniform(0,2*np.pi)
-            theta = np.arccos(np.random.uniform(-1,1))
-            randomvec= [np.sin(theta)*np.cos(phi), np.sin(theta)*np.sin(phi), np.cos(theta)]
-            store.append([randomvec,project(sk.voft,randomvec)[-1]])
 
-        store=sorted(store, key=lambda x:x[1])
+        filename='lineofsight.pkl'
+        if not os.path.isfile(filename):
+            print("Storing data:", filename)
+
+            store=[]
+            for i in tqdm(np.linspace(0,1,dim)):
+                phi = np.random.uniform(0,2*np.pi)
+                theta = np.arccos(np.random.uniform(-1,1))
+                randomvec= [np.sin(theta)*np.cos(phi), np.sin(theta)*np.sin(phi), np.cos(theta)]
+                store.append([randomvec,project(sk.voft,randomvec)[-1]])
+
+            store=sorted(store, key=lambda x:x[1])
+            with open(filename, 'wb') as f: pickle.dump(store, f)
+        with open(filename, 'rb') as f: store = pickle.load(f)
 
         for i,rv in tqdm(zip(np.linspace(0,1,dim),[x[0] for x in store])):
             color=plt.cm.copper(i)
@@ -1512,7 +1521,7 @@ class plots(object):
         ax.plot(times,scipy.stats.norm.cdf(times, loc=10, scale=8),dashes=[10,4],c='C0',lw=2)
         ax.plot(times,scipy.stats.norm.cdf(times, loc=10, scale=8),c='C0',alpha=0.5,lw=1)
         ax.set_xlim(-50,50)
-        ax.set_ylim(-2.5,2.5)
+        ax.set_ylim(-2,3)
         ax.xaxis.set_major_locator(MultipleLocator(20))
         ax.xaxis.set_minor_locator(AutoMinorLocator())
         ax.yaxis.set_minor_locator(AutoMinorLocator())
@@ -1537,6 +1546,7 @@ class plots(object):
         dim=int(1e4)
         filename='symmetry.pkl'
         if not os.path.isfile(filename):
+            print("Storing data:", filename)
 
             kicks=[[],[],[]]
 
@@ -1564,6 +1574,9 @@ class plots(object):
                 chi2 = [-chi1[0],-chi1[1],chi1[2]]
                 kicks[2].append(np.linalg.norm(np.cross(surrkick(q=q,chi1=chi1,chi2=chi2).kickcomp,[0,0,1])))
 
+
+
+
             print("Storing datxa:", filename)
 
             with open(filename, 'wb') as f: pickle.dump(kicks, f)
@@ -1573,7 +1586,7 @@ class plots(object):
         for axx,kick in zip(ax,kicks):
             axx.hist(1/0.001*np.abs(kick),bins=nbins,histtype='step',lw=2,alpha=1,color='C4',normed=True)
             axx.hist(1/0.001*np.abs(kick),bins=nbins,histtype='stepfilled',alpha=0.3,color='C4',normed=True)
-            #print(np.percentile(1/0.001*np.abs(kick), 50),np.percentile(1/0.001*np.abs(kick), 90))
+            print(np.percentile(1/0.001*np.abs(kick), 50),np.percentile(1/0.001*np.abs(kick), 90))
             axx.axvline(np.percentile(1/0.001*np.abs(kick), 50),c='gray',ls='dashed')
             axx.axvline(np.percentile(1/0.001*np.abs(kick), 90),c='gray',ls='dotted')
 
@@ -1886,4 +1899,4 @@ class plots(object):
 ########################################
 if __name__ == "__main__":
     pass
-    plots.explore()
+    plots.timing()
