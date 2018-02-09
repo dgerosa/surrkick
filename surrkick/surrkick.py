@@ -27,7 +27,7 @@ import precession
 import warnings
 import json
 
-__author__ = "Davide Gerosa, Francois Hebert"
+__author__ = "Davide Gerosa, Francois Hebert, Leo Stein"
 __email__ = "dgerosa@caltech.edu"
 __license__ = "MIT"
 __version__ = "1.1.0"
