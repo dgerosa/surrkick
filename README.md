@@ -20,7 +20,7 @@ The code is developed and maintained by [Davide Gerosa](www.davidegerosa.com) an
 
 ### Releases
 
-LINK TO ZENODO v1.0.0. Stable version released together with the first arxiv submission of [arXiv:1802.XXXXX](https://arxiv.org/abs/arXiv:1802.XXXXX).
+[![DOI](https://zenodo.org/badge/119469724.svg)](https://zenodo.org/badge/latestdoi/119469724) Stable version released together with the first arxiv submission of [arXiv:1802.XXXXX](https://arxiv.org/abs/arXiv:1802.XXXXX).
 
 ### Installation
 
