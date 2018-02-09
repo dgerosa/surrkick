@@ -1434,10 +1434,8 @@ class plots(object):
         axE.hist(fe,bins=nbins,weights=np.ones_like(Erad)/dim,histtype='stepfilled',alpha=0.2,color='C3',normed=True)
         axE.hist(Erad,bins=nbins,weights=np.ones_like(Erad)/dim,histtype='step',lw=2,alpha=0.8,color='C0',normed=True)
         axE.hist(Erad,bins=nbins,weights=np.ones_like(Erad)/dim,histtype='stepfilled',alpha=0.2,color='C0',normed=True)
-
-        print("surr", np.median(Erad), np.std(Erad))
-        print("fit", np.median(fe), np.std(fe))
-
+        #print("surr", np.median(Erad), np.std(Erad))
+        #print("fit", np.median(fe), np.std(fe))
 
         for ax in [axv,axi]:
             ax.hist(1/0.001*fk,bins=nbins,weights=np.ones_like(Erad)/dim,histtype='step',lw=2,alpha=0.8,color='C3',label='Fitting formula',normed=True)
