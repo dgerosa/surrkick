@@ -1729,8 +1729,8 @@ class plots(object):
         highlight_surr = [mag_surr[case] for case in case_indices]
         ax.scatter(highlight_nr, highlight_surr, marker='x',s=25, alpha=1,color='C3')
 
-        ax.set_xlim(0,10)
-        ax.set_ylim(0,10)
+        ax.set_xlim(0,10.5)
+        ax.set_ylim(0,10.5)
         ax.set_xlabel("NR $v_k\;[0.001c]$")
         ax.set_ylabel("Surrogate $v_k\;[0.001c]$")
         ax.xaxis.set_major_locator(MultipleLocator(2))
@@ -1738,11 +1738,11 @@ class plots(object):
         ax.yaxis.set_major_locator(MultipleLocator(2))
         ax.yaxis.set_minor_locator(MultipleLocator(0.5))
 
-        bins = np.linspace(0, 10, 36)
+        bins = np.linspace(0, 10.5, 36)
         axt.hist(mag_nr, bins=bins, histtype='stepfilled',alpha=0.4,color='C0')
         axt.hist(mag_nr, bins=bins, histtype='step',color='C0')
-        axt.set_xlim(0,10)
-        axt.set_ylim(0,80)
+        axt.set_xlim(0,10.5)
+        axt.set_ylim(0,90)
         axt.axes.xaxis.set_ticklabels([])
         axt.xaxis.set_major_locator(MultipleLocator(2))
         axt.xaxis.set_minor_locator(MultipleLocator(0.5))
@@ -1751,8 +1751,8 @@ class plots(object):
 
         axr.hist(mag_surr, bins=bins, histtype='stepfilled', orientation='horizontal',alpha=0.4,color='C0')
         axr.hist(mag_surr, bins=bins, histtype='step', orientation='horizontal',color='C0')
-        axr.set_xlim(0,80)
-        axr.set_ylim(0,10)
+        axr.set_xlim(0,90)
+        axr.set_ylim(0,10.5)
         axr.axes.yaxis.set_ticklabels([])
         axr.xaxis.set_major_locator(MultipleLocator(40))
         axr.xaxis.set_minor_locator(MultipleLocator(10))
