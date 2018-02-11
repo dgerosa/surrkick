@@ -13,7 +13,7 @@ Our extraction procedure is made publicly available as a module for the Python p
 When using `surrkick` in any published work, please cite the paper describing its implementation:
 
 - *Black-hole kicks from numerical-relativity surrogate models.*
-Davide Gerosa, Francois Hebert.
+Davide Gerosa, Francois Hebert, Leo C. Stein.
 [arXiv:1802.XXXXX](https://arxiv.org/abs/arXiv:1802.XXXXX)
 
 The code is developed and maintained by [Davide Gerosa](www.davidegerosa.com) and [Francois Hebert](https://github.com/fmahebert). We thank Jonathan Blackman, Chad Galley, Mark Scheel, Ulrich Sperhake, Leo Stein, Saul Teukolsky and Vijay Varma for various discussions and technical help.
