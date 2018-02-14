@@ -14,13 +14,13 @@ When using `surrkick` in any published work, please cite the paper describing it
 
 - *Black-hole kicks from numerical-relativity surrogate models.*
 Davide Gerosa, Francois Hebert, Leo C. Stein.
-[arXiv:1802.XXXXX](https://arxiv.org/abs/arXiv:1802.XXXXX)
+[arXiv:1802.04276](https://arxiv.org/abs/arXiv:1802.04276)
 
 The code is developed and maintained by [Davide Gerosa](www.davidegerosa.com) and [Francois Hebert](https://github.com/fmahebert). We thank Jonathan Blackman, Chad Galley, Mark Scheel, Ulrich Sperhake, Leo Stein, Saul Teukolsky and Vijay Varma for various discussions and technical help.
 
 ### Releases
 
-[![DOI](https://zenodo.org/badge/119469724.svg)](https://zenodo.org/badge/latestdoi/119469724) Stable version released together with the first arxiv submission of [arXiv:1802.XXXXX](https://arxiv.org/abs/arXiv:1802.XXXXX).
+[![DOI](https://zenodo.org/badge/119469724.svg)](https://zenodo.org/badge/latestdoi/119469724) Stable version released together with the first arxiv submission of [arXiv:1802.04276](https://arxiv.org/abs/arXiv:1802.04276).
 
 ### Installation
 
@@ -65,7 +65,7 @@ The core of the code consists of a single class, surrkick, whose methods allow t
 - `xoft`: Center-of-mass trajectory x(t).   
 
 The class `plots` contains script to reproduce all figures and results in 
-[arXiv:1802.XXXXX](https://arxiv.org/abs/arXiv:1802.XXXXX). 
+[arXiv:1802.04276](https://arxiv.org/abs/arXiv:1802.04276). 
 You can explore its methods with, e.g. `help(surrkick.plots)`. 
 
 ### Test
