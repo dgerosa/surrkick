@@ -1213,10 +1213,10 @@ class plots(object):
                 axt.yaxis.set_major_locator(MultipleLocator(1))
                 axt.set_ylabel("$[1000\;{\\rm km/s}]$")
             axi.set_xlim(-450,-150)
-            axi.set_ylim(-7,7)
+            axi.set_ylim(-7/1000,7/1000)
             axi.yaxis.tick_right()
             axi.set_xticks([-400,-300,-200])
-            axi.set_yticks([-5,0,5])
+            axi.set_yticks([-5/1000,0,5/1000])
             axi.set_yticklabels(axi.get_yticks(),fontsize=8)
             axi.xaxis.set_tick_params(pad=1)
             axi.set_xticklabels(axi.get_xticks(),fontsize=8)
@@ -1943,7 +1943,5 @@ class plots(object):
 ########################################
 if __name__ == "__main__":
 
-    #pass
-    #plots.minimal()
-
-    plots.alphaprof()
+    pass
+    plots.minimal()
