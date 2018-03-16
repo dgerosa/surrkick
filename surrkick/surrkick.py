@@ -670,6 +670,7 @@ class plots(object):
         axE = figE.add_axes([0,0,L,H])
         figJ = plt.figure(figsize=(6,6))
         axJ = [figJ.add_axes([0,-i*(S+H),L,H]) for i in [0,1,2,3]]
+        axPt = [ax.twinx() for ax in axP]
 
         q_vals = np.linspace(1,0.5,8)
         for i,q in enumerate(tqdm(q_vals)):
@@ -694,9 +695,15 @@ class plots(object):
             ax.set_xticklabels([])
         for ax in [axP[-1]]+[axJ[-1]]+[axE]:
             ax.set_xlabel("$t\;\;[M]$")
-        for ax,d in zip(axP,["x","y","z","v_k"]):
+        for ax,axt,d in zip(axP,axPt,["x","y","z","v_k"]):
             ax.set_ylim(-1,1)
             ax.set_ylabel("$\mathbf{v}(t) \cdot \mathbf{\hat "+d+"} \;\;[0.001c]$")
+            axt.set_ylim(convert.kms(1e-3*np.array(ax.get_ylim())))
+            axt.xaxis.set_minor_locator(AutoMinorLocator())
+            axt.yaxis.set_minor_locator(AutoMinorLocator())
+            axt.yaxis.set_major_locator(MultipleLocator(150))
+            axt.set_ylabel("$[{\\rm km/s}]$")
+
         axE.set_ylabel("$E(t) \;\;[M]$")
         for ax,d in zip(axJ,["x","y","z","J_k"]):
             ax.set_ylim(-0.1,0.5)
@@ -1101,6 +1108,7 @@ class plots(object):
 
             fig = plt.figure(figsize=(6,6))
             axs = [fig.add_axes([0,-i*(S+H),L,H]) for i in [0,1,2,3]]
+            axst = [ax.twinx() for ax in axs]
 
             chimag=0.8
             sks=[ surrkick(q=q,chi1=[0,0,chimag],chi2=[0,0,chimag],t_ref=-100), surrkick(q=q,chi1=[0,0,-chimag],chi2=[0,0,-chimag],t_ref=-100),
@@ -1133,6 +1141,12 @@ class plots(object):
             for ax,d in zip(axs,["x","y","z","v_k"]):
                 ax.set_ylim(-1.5,1.5)
                 ax.set_ylabel("$\mathbf{v}(t) \cdot \mathbf{\hat "+d+"} \;\;[0.001c]$")
+            for axt in axst:
+                axt.set_ylim(convert.kms(1e-3*np.array(ax.get_ylim())))
+                axt.xaxis.set_minor_locator(AutoMinorLocator())
+                axt.yaxis.set_minor_locator(AutoMinorLocator())
+                axt.yaxis.set_major_locator(MultipleLocator(200))
+                axt.set_ylabel("$[{\\rm km/s}]$")
 
             figs.append(fig)
 
@@ -1155,6 +1169,7 @@ class plots(object):
             fig = plt.figure(figsize=(6,6))
             axs = [fig.add_axes([0,-i*(S+H),L,H]) for i in [0,1,2,3]]
             axi = fig.add_axes([0,-1*(S+H)-S-Z*H,Z*L*1.2,Z*H])
+            axst = [ax.twinx() for ax in axs]
 
             chimag1=0.8
             chimag2=0.8
@@ -1190,6 +1205,12 @@ class plots(object):
             for ax,d in zip(axs,["x","y","z","v_k"]):
                 ax.set_ylim(-10,10)
                 ax.set_ylabel("$\mathbf{v}(t) \cdot \mathbf{\hat "+d+"} \;\;[0.001c]$")
+            for axt in axst:
+                axt.set_ylim(convert.kms(1e-3*np.array(ax.get_ylim())))
+                axt.xaxis.set_minor_locator(AutoMinorLocator())
+                axt.yaxis.set_minor_locator(AutoMinorLocator())
+                axt.yaxis.set_major_locator(MultipleLocator(1000))
+                axt.set_ylabel("$[{\\rm km/s}]$")
             axi.set_xlim(-450,-150)
             axi.set_ylim(-0.02,0.02)
             axi.yaxis.tick_right()
@@ -1217,6 +1238,7 @@ class plots(object):
         H=0.3
         S=0.05
         axs = [fig.add_axes([i*(S+L),0,L,H]) for i in [0,1]]
+        axt = axs[1].twinx()
 
         dim=200
         chimag=0.8
@@ -1250,6 +1272,11 @@ class plots(object):
             ax.set_ylim(0,10)
             ax.xaxis.set_minor_locator(AutoMinorLocator())
             ax.yaxis.set_minor_locator(AutoMinorLocator())
+        axt.set_ylim(convert.kms(1e-3*np.array(ax.get_ylim())))
+        axt.xaxis.set_minor_locator(AutoMinorLocator())
+        axt.yaxis.set_minor_locator(AutoMinorLocator())
+        axt.yaxis.set_major_locator(MultipleLocator(1000))
+        axt.set_ylabel("$[{\\rm km/s}]$")
 
         return fig
 
@@ -1261,6 +1288,7 @@ class plots(object):
 
         fig = plt.figure(figsize=(6,6))
         ax=fig.add_axes([0,0,0.7,0.3])
+        axt = ax.twinx()
         chimag=0.5
 
         ax.axvline(0,c='black',alpha=0.3,ls='dotted')
@@ -1272,11 +1300,18 @@ class plots(object):
             color=plt.cm.copper(i/len(alpha_vals))
             ax.plot(sk.times,1/0.001*project(sk.voft,sk.kickdir),color=color,alpha=0.8)
         ax.set_xlim(-100,50)
+        ax.set_ylim(-1.2,6.7)
+
         ax.set_xlabel("$t\;\;[M]$")
         ax.set_ylabel("$\mathbf{v}(t)\cdot \mathbf{\hat v_k} \;\;[0.001 c]$")
         ax.xaxis.set_minor_locator(AutoMinorLocator())
         ax.yaxis.set_minor_locator(AutoMinorLocator())
         ax.text(0.05,0.55,'$q=1$\n$\chi_1=\chi_2=0.8$\n$\\alpha=-\pi ... \pi$',transform=ax.transAxes,linespacing=1.4)
+        axt.set_ylim(convert.kms(1e-3*np.array(ax.get_ylim())))
+        axt.xaxis.set_minor_locator(AutoMinorLocator())
+        axt.yaxis.set_minor_locator(AutoMinorLocator())
+        axt.yaxis.set_major_locator(MultipleLocator(500))
+        axt.set_ylabel("$[{\\rm km/s}]$")
 
         return fig
 
@@ -1336,6 +1371,7 @@ class plots(object):
         S=0.05
         fig = plt.figure(figsize=(6,6))
         ax = fig.add_axes([0,0,L,H])
+        axt = ax.twinx()
         ax.axhline(0,c='black',alpha=0.3,ls='dotted')
 
         q=0.5
@@ -1369,6 +1405,11 @@ class plots(object):
         ax.xaxis.set_minor_locator(AutoMinorLocator())
         ax.set_xlabel("$t\;\;[M]$")
         ax.set_ylabel("$\mathbf{v}(t) \cdot \mathbf{\hat n} \;\;[0.001c]$")
+        axt.set_ylim(convert.kms(1e-3*np.array(ax.get_ylim())))
+        axt.xaxis.set_minor_locator(AutoMinorLocator())
+        axt.yaxis.set_minor_locator(AutoMinorLocator())
+        axt.yaxis.set_major_locator(MultipleLocator(100))
+        axt.set_ylabel("$[{\\rm km/s}]$")
 
         return fig
 
@@ -1389,6 +1430,7 @@ class plots(object):
         axE= fig.add_axes([H+S-0.02,(H-S)/2+S,L,(H-S)/2])
         axJ= fig.add_axes([H+S-0.02,0,L,(H-S)/2])
         axi = fig.add_axes([H-Li-s,H-Hi-0.15,Li,Hi])
+        axt = axv.twiny()
 
         dim=int(1e6)
 
@@ -1463,6 +1505,11 @@ class plots(object):
         axi.set_xlim(8,11)
         axi.set_ylim(0,0.01)
         axJ.yaxis.set_major_locator(MultipleLocator(2))
+        axt.set_xlim(convert.kms(1e-3*np.array(axv.get_xlim())))
+        axt.xaxis.set_minor_locator(AutoMinorLocator())
+        axt.yaxis.set_minor_locator(AutoMinorLocator())
+        axt.xaxis.set_major_locator(MultipleLocator(1000))
+        axt.set_xlabel("$[{\\rm km/s}]$",labelpad=8)
         axi.xaxis.set_major_locator(MultipleLocator(1))
         axi.yaxis.set_major_locator(MultipleLocator(0.002))
         axi.set_yticklabels(axi.get_yticks(),fontsize=12)
@@ -1541,10 +1588,11 @@ class plots(object):
         Usage: surrkick.plots.symmetry()'''
 
         L=0.7
-        H=0.4
-        S=0.15
+        H=0.33
+        S=0.23
         fig = plt.figure(figsize=(6,6))
         ax = [fig.add_axes([0,-i*(S+H),L,H]) for i in [0,1,2]]
+        axt = [axx.twiny() for axx in ax]
 
         dim=int(1e4)
         filename='symmetry.pkl'
@@ -1594,9 +1642,16 @@ class plots(object):
         ax[0].text(0.5,0.9,'$q=1$\n$\\boldsymbol{\\chi_1}=\\boldsymbol{\\chi_2}$\n$\longrightarrow v_k=0$',verticalalignment='top', transform=ax[0].transAxes,linespacing=1.6)
         ax[1].text(0.5,0.9,'${\\rm Generic}\; q$\n$\\boldsymbol{\\chi_1}\\times \mathbf{\hat z} = \\boldsymbol{\\chi_2}\\times \mathbf{\hat z}=0$\n$\longrightarrow \mathbf{v_k}\cdot\mathbf{\hat z}=0$',verticalalignment='top',transform=ax[1].transAxes,linespacing=1.6)
         ax[2].text(0.5,0.9,'$q=1$\n$\\boldsymbol{\\chi_1}\\cdot \mathbf{\hat z}=\\boldsymbol{\\chi_2}\\cdot \mathbf{\hat z}$\n$\\boldsymbol{\\chi_1}\\times \mathbf{\hat z} = -\\boldsymbol{\\chi_2}\\times \mathbf{\hat z}$\n$\longrightarrow \mathbf{v_k}\\times\mathbf{\hat z}=0$',verticalalignment='top',transform=ax[2].transAxes,linespacing=1.6)
-        for axx in ax:
+        for axx,axxt in zip(ax,axt):
             axx.xaxis.set_minor_locator(AutoMinorLocator())
             axx.yaxis.set_minor_locator(AutoMinorLocator())
+            axxt.set_xlim(convert.kms(1e-3*np.array(axx.get_xlim())))
+            axxt.xaxis.set_minor_locator(AutoMinorLocator())
+            axxt.yaxis.set_minor_locator(AutoMinorLocator())
+            axxt.set_xlabel("$[{\\rm km/s}]$",labelpad=8)
+        axt[0].xaxis.set_major_locator(MultipleLocator(50))
+        axt[1].xaxis.set_major_locator(MultipleLocator(5))
+        axt[2].xaxis.set_major_locator(MultipleLocator(5))
 
         return fig
 
@@ -1608,6 +1663,7 @@ class plots(object):
 
         fig = plt.figure(figsize=(6,6))
         ax = fig.add_axes([0,0,1.25,0.6])
+        axt = ax.twiny()
 
         nr100 = np.loadtxt(os.path.dirname(os.path.abspath(__file__))+"/"+"nr_comparison_data/nr_kicks_t100.dat")
         nr4500 = np.loadtxt(os.path.dirname(os.path.abspath(__file__))+"/"+"nr_comparison_data/nr_kicks_t4500.dat")
@@ -1664,6 +1720,11 @@ class plots(object):
         ax.xaxis.set_major_locator(LogLocator(numticks=8))
         ax.xaxis.set_minor_locator(LogLocator(numticks=8,subs=(0.1,0.2,0.3,0.4,0.5,0.6,0.7,0.8,0.9,)))
         ax.xaxis.set_minor_formatter(NullFormatter())
+        axt.semilogx()
+        axt.set_xlim(convert.kms(1e-3*np.array(ax.get_xlim())))
+        axt.yaxis.set_minor_locator(AutoMinorLocator())
+        axt.set_xlabel("$[{\\rm km/s}]$",labelpad=8)
+
 
         return fig
 
