@@ -698,11 +698,11 @@ class plots(object):
         for ax,axt,d in zip(axP,axPt,["x","y","z","v_k"]):
             ax.set_ylim(-1,1)
             ax.set_ylabel("$\mathbf{v}(t) \cdot \mathbf{\hat "+d+"} \;\;[0.001c]$")
-            axt.set_ylim(convert.kms(1e-3*np.array(ax.get_ylim())))
+            axt.set_ylim(convert.kms(1e-3*np.array(ax.get_ylim()))/100)
             axt.xaxis.set_minor_locator(AutoMinorLocator())
             axt.yaxis.set_minor_locator(AutoMinorLocator())
-            axt.yaxis.set_major_locator(MultipleLocator(150))
-            axt.set_ylabel("$[{\\rm km/s}]$")
+            axt.yaxis.set_major_locator(MultipleLocator(1.5))
+            axt.set_ylabel("$[100\; {\\rm km/s}]$")
 
         axE.set_ylabel("$E(t) \;\;[M]$")
         for ax,d in zip(axJ,["x","y","z","J_k"]):
@@ -1142,11 +1142,11 @@ class plots(object):
                 ax.set_ylim(-1.5,1.5)
                 ax.set_ylabel("$\mathbf{v}(t) \cdot \mathbf{\hat "+d+"} \;\;[0.001c]$")
             for axt in axst:
-                axt.set_ylim(convert.kms(1e-3*np.array(ax.get_ylim())))
+                axt.set_ylim(convert.kms(1e-3*np.array(ax.get_ylim()))/100)
                 axt.xaxis.set_minor_locator(AutoMinorLocator())
                 axt.yaxis.set_minor_locator(AutoMinorLocator())
-                axt.yaxis.set_major_locator(MultipleLocator(200))
-                axt.set_ylabel("$[{\\rm km/s}]$")
+                axt.yaxis.set_major_locator(MultipleLocator(2))
+                axt.set_ylabel("$[100\;{\\rm km/s}]$")
 
             figs.append(fig)
 
@@ -1185,9 +1185,10 @@ class plots(object):
                 axs[0].plot(sk.times,1./0.001*project(sk.voft,[1,0,0]),alpha=1,lw=2,c=c,dashes=d)
                 axs[1].plot(sk.times,1./0.001*project(sk.voft,[0,1,0]),alpha=0.4,lw=1,c=c)
                 axs[1].plot(sk.times,1./0.001*project(sk.voft,[0,1,0]),alpha=1,lw=2,c=c,dashes=d,label=l)
-                for ax in [axs[2],axi]:
-                    ax.plot(sk.times,1./0.001*project(sk.voft,[0,0,1]),alpha=0.4,lw=1,c=c)
-                    ax.plot(sk.times,1./0.001*project(sk.voft,[0,0,1]),alpha=1,lw=2,c=c,dashes=d)
+                axs[2].plot(sk.times,1./0.001*project(sk.voft,[0,0,1]),alpha=0.4,lw=1,c=c)
+                axs[2].plot(sk.times,1./0.001*project(sk.voft,[0,0,1]),alpha=1,lw=2,c=c,dashes=d)
+                axi.plot(sk.times,convert.kms(project(sk.voft,[0,0,1])/1000),alpha=0.4,lw=1,c=c)
+                axi.plot(sk.times,convert.kms(project(sk.voft,[0,0,1])/1000),alpha=1,lw=2,c=c,dashes=d)
                 axs[3].plot(sk.times,1./0.001*project(sk.voft,sk.kickdir),alpha=0.4,lw=1,c=c)
                 axs[3].plot(sk.times,1./0.001*project(sk.voft,sk.kickdir),alpha=1,lw=2,c=c,dashes=d)
 
@@ -1206,16 +1207,16 @@ class plots(object):
                 ax.set_ylim(-10,10)
                 ax.set_ylabel("$\mathbf{v}(t) \cdot \mathbf{\hat "+d+"} \;\;[0.001c]$")
             for axt in axst:
-                axt.set_ylim(convert.kms(1e-3*np.array(ax.get_ylim())))
+                axt.set_ylim(convert.kms(1e-3*np.array(ax.get_ylim()))/1000)
                 axt.xaxis.set_minor_locator(AutoMinorLocator())
                 axt.yaxis.set_minor_locator(AutoMinorLocator())
-                axt.yaxis.set_major_locator(MultipleLocator(1000))
-                axt.set_ylabel("$[{\\rm km/s}]$")
+                axt.yaxis.set_major_locator(MultipleLocator(1))
+                axt.set_ylabel("$[1000\;{\\rm km/s}]$")
             axi.set_xlim(-450,-150)
-            axi.set_ylim(-0.02,0.02)
+            axi.set_ylim(-7,7)
             axi.yaxis.tick_right()
             axi.set_xticks([-400,-300,-200])
-            axi.set_yticks([-0.015,0,0.015])
+            axi.set_yticks([-5,0,5])
             axi.set_yticklabels(axi.get_yticks(),fontsize=8)
             axi.xaxis.set_tick_params(pad=1)
             axi.set_xticklabels(axi.get_xticks(),fontsize=8)
@@ -1272,11 +1273,11 @@ class plots(object):
             ax.set_ylim(0,10)
             ax.xaxis.set_minor_locator(AutoMinorLocator())
             ax.yaxis.set_minor_locator(AutoMinorLocator())
-        axt.set_ylim(convert.kms(1e-3*np.array(ax.get_ylim())))
+        axt.set_ylim(convert.kms(1e-3*np.array(ax.get_ylim()))/1000)
         axt.xaxis.set_minor_locator(AutoMinorLocator())
         axt.yaxis.set_minor_locator(AutoMinorLocator())
-        axt.yaxis.set_major_locator(MultipleLocator(1000))
-        axt.set_ylabel("$[{\\rm km/s}]$")
+        axt.yaxis.set_major_locator(MultipleLocator(1))
+        axt.set_ylabel("$[1000\;{\\rm km/s}]$")
 
         return fig
 
@@ -1307,11 +1308,11 @@ class plots(object):
         ax.xaxis.set_minor_locator(AutoMinorLocator())
         ax.yaxis.set_minor_locator(AutoMinorLocator())
         ax.text(0.05,0.55,'$q=1$\n$\chi_1=\chi_2=0.8$\n$\\alpha=-\pi ... \pi$',transform=ax.transAxes,linespacing=1.4)
-        axt.set_ylim(convert.kms(1e-3*np.array(ax.get_ylim())))
+        axt.set_ylim(convert.kms(1e-3*np.array(ax.get_ylim()))/1000)
         axt.xaxis.set_minor_locator(AutoMinorLocator())
         axt.yaxis.set_minor_locator(AutoMinorLocator())
-        axt.yaxis.set_major_locator(MultipleLocator(500))
-        axt.set_ylabel("$[{\\rm km/s}]$")
+        axt.yaxis.set_major_locator(MultipleLocator(0.5))
+        axt.set_ylabel("$[1000\;{\\rm km/s}]$")
 
         return fig
 
@@ -1405,11 +1406,11 @@ class plots(object):
         ax.xaxis.set_minor_locator(AutoMinorLocator())
         ax.set_xlabel("$t\;\;[M]$")
         ax.set_ylabel("$\mathbf{v}(t) \cdot \mathbf{\hat n} \;\;[0.001c]$")
-        axt.set_ylim(convert.kms(1e-3*np.array(ax.get_ylim())))
+        axt.set_ylim(convert.kms(1e-3*np.array(ax.get_ylim()))/100)
         axt.xaxis.set_minor_locator(AutoMinorLocator())
         axt.yaxis.set_minor_locator(AutoMinorLocator())
-        axt.yaxis.set_major_locator(MultipleLocator(100))
-        axt.set_ylabel("$[{\\rm km/s}]$")
+        axt.yaxis.set_major_locator(MultipleLocator(1))
+        axt.set_ylabel("$[100\;{\\rm km/s}]$")
 
         return fig
 
@@ -1942,5 +1943,7 @@ class plots(object):
 ########################################
 if __name__ == "__main__":
 
-    pass
-    plots.minimal()
+    #pass
+    #plots.minimal()
+
+    plots.alphaprof()
