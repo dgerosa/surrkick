@@ -530,19 +530,22 @@ def project(timeseries,direction):
     return np.array([np.dot(t,direction) for t in timeseries])
 
 
+@np.vectorize
+def alphakick(q,chi1mag,chi2mag,theta1,theta2,deltaphi,alpha,t_ref=-100):
+    '''Return kick as a function of relative orientation of the spins and an overall rotation alpha.
+    Usage: kick=alphakick(q,chi1mag,chi2mag,theta1,theta2,deltaphi,alpha)'''
+
+    chi1 = [chi1mag*np.sin(theta1)*np.cos(alpha),chi1mag*np.sin(theta1)*np.sin(alpha),chi1mag*np.cos(theta1)]
+    chi2 = [chi2mag*np.sin(theta2)*np.cos(deltaphi+alpha),chi2mag*np.sin(theta2)*np.sin(deltaphi+alpha),chi1mag*np.cos(theta2)]
+    return surrkick(q=q,chi1=chi1,chi2=chi2,t_ref=t_ref).kick
+
 def maxalpha(q=1,chi1mag=0,chi2mag=0.,theta1=0.,theta2=0.,deltaphi=0.,t_ref=-100):
     '''For a given relative configration (theta1, theta2, deltaphi), find the min and max of the kick varying over alpha.
     Usage: kickmin,kickmax,alphamin,alphamax=maxalpha(q=1,chi1mag=0,chi2mag=0.,theta1=0.,theta2=0.,deltaphi=0.,t_ref=-100)'''
 
-    def _alphakick(alpha,q,chi1mag,chi2mag,theta1,theta2):
-        chi1 = [chi1mag*np.sin(theta1)*np.cos(alpha),chi1mag*np.sin(theta1)*np.sin(alpha),chi1mag*np.cos(theta1)]
-        chi2 = [chi2mag*np.sin(theta2)*np.cos(deltaphi+alpha),chi2mag*np.sin(theta2)*np.sin(deltaphi+alpha),chi1mag*np.cos(theta2)]
-        return surrkick(q=q,chi1=chi1,chi2=chi2,t_ref=t_ref).kick
-
     # Generate some guesses
     alpha_vals=np.linspace(-np.pi,np.pi,41)[1:-1:2]
-    guess=np.array([_alphakick(alpha,q,chi1mag,chi2mag,theta1,theta2) for alpha in alpha_vals])
-
+    guess=alphakick(q,chi1mag,chi2mag,theta1,theta2,deltaphi,alpha_vals)
     # Find suitable bounds in alpha given the max/min array position
     def _boundsfromid(id):
         if id==0: # Guess is at the beginning
@@ -553,10 +556,10 @@ def maxalpha(q=1,chi1mag=0,chi2mag=0.,theta1=0.,theta2=0.,deltaphi=0.,t_ref=-100
             return (alpha_vals[id-1],alpha_vals[id+1])
 
     # Find minimum
-    resmin = scipy.optimize.minimize_scalar(lambda alpha: _alphakick(alpha,q,chi1mag,chi2mag,theta1,theta2), bounds=_boundsfromid(np.argmin(guess)),  method='bounded')
+    resmin = scipy.optimize.minimize_scalar(lambda alpha: alphakick(q,chi1mag,chi2mag,theta1,theta2,deltaphi,alpha), bounds=_boundsfromid(np.argmin(guess)),  method='bounded')
 
     # Find maximum
-    resmax = scipy.optimize.minimize_scalar(lambda alpha: -_alphakick(alpha,q,chi1mag,chi2mag,theta1,theta2), bounds=_boundsfromid(np.argmax(guess)),  method='bounded')
+    resmax = scipy.optimize.minimize_scalar(lambda alpha: -alphakick(q,chi1mag,chi2mag,theta1,theta2,deltaphi,alpha), bounds=_boundsfromid(np.argmax(guess)),  method='bounded')
 
     return resmin.fun, -resmax.fun, resmin.x, resmax.x
 
@@ -1978,7 +1981,7 @@ class plots(object):
     def RIT_comparison(self):
 
         # Read in tables cleaned from tex source
-        data=np.genfromtxt(os.path.dirname(os.path.abspath(__file__))+"/"+"nr_comparison_data/RITdata.txt", dtype=(basestring,float,float,float),usecols=(0,9,11,13))
+        data=np.genfromtxt(os.path.dirname(os.path.abspath(__file__))+"/"+"nr_comparison_data/RITdata.txt", dtype=(basestring,float,float,float,float,float,float),usecols=(0,9,10,11,12,13,14))
 
         # Parse results. Output is an array where [stringRIT,confRIT,qRIT,thetaRIT,phiRIT,kickRIT], for instances
         # parsed[0] = ['NTH15', 'N', 1.0, 0.2617993877991494, 0.0, 0.001586902918223467]
@@ -2007,19 +2010,25 @@ class plots(object):
             else:
                 thetaRIT=np.nan
             # Extract kick magnitude
-            kickRIT=convert.cisone(np.linalg.norm([d[1],d[2],d[3]]))
+            vxRIT,dvxRIT,vyRIT,dvyRIT,vzRIT,dvzRIT=list(d)[1:]
 
-            parsed.append([stringRIT,confRIT,qRIT,thetaRIT,phiRIT,kickRIT])
+            kickRIT=convert.cisone(np.linalg.norm([vxRIT,vyRIT,vzRIT]))
+
+            kickminRIT=convert.cisone(np.linalg.norm([np.abs(vxRIT)-dvxRIT,np.abs(vyRIT)-dvyRIT,np.abs(vzRIT)-dvzRIT]))
+            kickmaxRIT=convert.cisone(np.linalg.norm([np.abs(vxRIT)+dvxRIT,np.abs(vyRIT)+dvyRIT,np.abs(vzRIT)+dvzRIT]))
+
+            parsed.append([stringRIT,confRIT,qRIT,thetaRIT,phiRIT,kickRIT,kickminRIT,kickmaxRIT])
 
         # Single out the simulation series
         parsedsingle = sorted(list(set(zip(*parsed)[0])))
-        print(parsedsingle)
+
+        figs=[]
 
         # Loop over simulation series
-        for stringRIT in parsedsingle:
+        for stringRIT in tqdm(parsedsingle):
+
             parsedfilter = filter(lambda x:x[0]==stringRIT, parsed)
-            print(parsedfilter)
-            _,confRIT,qRIT,thetaRIT,_,kickRIT = zip(*parsedfilter)
+            _,confRIT,qRIT,thetaRIT,_,kickRIT,kickminRIT,kickmaxRIT = zip(*parsedfilter)
             assert len(set(confRIT))==1 # Just a check...
             confRIT=str(confRIT[0]) # Kind of series (S,L,K,N,Nq)
             assert len(set(qRIT))==1 # Just a check...
@@ -2027,6 +2036,8 @@ class plots(object):
             assert len(set(thetaRIT))==1 # Just a check...
             thetaRIT=float(thetaRIT[0]) # Value of theta in the RIT notation
             kickRIT=np.array(kickRIT) # Array with all the kick values in this series
+            kickminRIT=np.array(kickminRIT) # Array with all the kick values in this series
+            kickmaxRIT=np.array(kickmaxRIT) # Array with all the kick values in this series
 
             # Convert RIT notation to surrkick inputs
             if confRIT=='S':
@@ -2035,7 +2046,7 @@ class plots(object):
                 chi1mag=0.8
                 chi2mag=0.8
                 theta1=thetaRIT
-                theta2=-thetaRIT
+                theta2=np.pi-thetaRIT
                 deltaphi=np.pi
             elif confRIT=='K':
                 assert qRIT==1.
@@ -2043,7 +2054,7 @@ class plots(object):
                 chi1mag=0.8
                 chi2mag=0.8
                 theta1=thetaRIT
-                theta2=-thetaRIT
+                theta2=np.pi-thetaRIT
                 deltaphi=0.
             elif confRIT=='L':
                 assert qRIT==1.
@@ -2061,7 +2072,6 @@ class plots(object):
                 theta1=thetaRIT # Irrelevant
                 theta2=thetaRIT
                 deltaphi=0. # Irrelevant
-
             elif confRIT=='NQ':
                 if qRIT<1.: # Large BH is spinning
                     q=qRIT
@@ -2076,27 +2086,43 @@ class plots(object):
                 deltaphi=0. # Irrelevant
 
 
-        # series['N']['TH15']={'theta1' = np.randians(15), theta2= np.radians(15), }
-        #
-        # series['S']={'q':1., 'chi1mag':0.8,'chi2mag':0.8, 'deltaphi'=np.pi} # and theta2=-theta1
-        #
-        # series['K']={'q':1., 'chi1mag':0.8,'chi2mag':0.8, 'deltaphi'=0} # and theta2=-theta1
-        #
-        # series['L']={'q':1., 'chi1mag':0.8,'chi2mag':0.8, 'deltaphi'=0, 'theta1'=0, 'theta2'=np.pi/2., 'deltaphi'=0}
-        #
-        #
-        # alpha_vals=np.linspace(-np.pi,np.pi,100)
-        # kick_vals=np.array([_alphakick(alpha,q,chi1mag,chi2mag,theta1,theta2) for alpha in alpha_vals])
-        # plt.axhline(resmin.fun,c='C1',ls='dotted')
-        # plt.axhline(-resmax.fun,c='C2',ls='dotted')
-        # plt.axvline(resmin.x,c='C1',ls='dotted')
-        # plt.axvline(resmax.x,c='C2',ls='dotted')
-        # plt.plot(alpha_vals,kick_vals)
-        # plt.xlabel("$\\alpha$")
-        # plt.ylabel("$v_k$")
-        # plt.show()
 
 
+            alpha_vals=np.linspace(-np.pi,np.pi,50)
+            #kickmin,kickmax,alphamin,alphamax = maxalpha(q=q,chi1mag=chi1mag,chi2mag=chi2mag,theta1=theta1,theta2=theta2,deltaphi=deltaphi)
+
+            fig = plt.figure(figsize=(6, 6))
+            ax = fig.add_axes([0, 0, 1, 1])
+            #ax.axhline(kickmin,c='C1',ls='dotted')
+            #ax.axhline(kickmax,c='C2',ls='dotted')
+            #ax.axvline(alphamin,c='C1',ls='dotted')
+            #ax.axvline(alphamax,c='C2',ls='dotted')
+
+            for t in [-4500,-2200,-100]:
+                kick_vals = alphakick(q,chi1mag,chi2mag,theta1,theta2,deltaphi,alpha_vals,t_ref=t)
+
+                ax.plot(alpha_vals,kick_vals)
+            ax.set_xlabel("$\\alpha$")
+            ax.set_ylabel("$v_k$")
+            #for k in kickRIT:
+            #    ax.axhline(k,c='C3',ls='dashed')
+            for k in kickminRIT:
+                ax.axhline(k,c='C3',ls='dashed')
+
+            for k in kickmaxRIT:
+                ax.axhline(k,c='C3',ls='dashed')
+
+
+            for kmin,kmax in zip(kickminRIT,kickmaxRIT):
+                ax.fill_between(alpha_vals, kmin, kmax, facecolor='C3', alpha=0.5)
+
+            ax.set_ylim(0,0.01)
+            ax.set_xlim(-np.pi,np.pi)
+
+            ax.set_title(stringRIT)
+            figs.append(fig)
+
+        return figs
 
 ########################################
 if __name__ == "__main__":
@@ -2104,7 +2130,4 @@ if __name__ == "__main__":
     pass
     #plots.minimal()
 
-    # N
-    #maxalpha(1,0,0.8,np.pi/2.,np.pi/2.,0)
-    #plots.alphaseries()
     plots.RIT_comparison()
