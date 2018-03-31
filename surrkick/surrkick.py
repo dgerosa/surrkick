@@ -2027,14 +2027,55 @@ class plots(object):
             assert len(set(thetaRIT))==1 # Just a check...
             thetaRIT=float(thetaRIT[0]) # Value of theta in the RIT notation
             kickRIT=np.array(kickRIT) # Array with all the kick values in this series
-            print(stringRIT,confRIT,qRIT,thetaRIT,kickRIT)
+
+            # Convert RIT notation to surrkick inputs
+            if confRIT=='S':
+                assert qRIT==1.
+                q=qRIT
+                chi1mag=0.8
+                chi2mag=0.8
+                theta1=thetaRIT
+                theta2=-thetaRIT
+                deltaphi=np.pi
+            elif confRIT=='K':
+                assert qRIT==1.
+                q=qRIT
+                chi1mag=0.8
+                chi2mag=0.8
+                theta1=thetaRIT
+                theta2=-thetaRIT
+                deltaphi=0.
+            elif confRIT=='L':
+                assert qRIT==1.
+                q=qRIT
+                chi1mag=0.8
+                chi2mag=0.8
+                theta1=0.
+                theta2=np.pi/2.
+                deltaphi=0.
+            elif confRIT=='N':
+                assert qRIT==1.
+                q=qRIT
+                chi1mag=0.
+                chi2mag=0.8
+                theta1=thetaRIT # Irrelevant
+                theta2=thetaRIT
+                deltaphi=0. # Irrelevant
+
+            elif confRIT=='NQ':
+                if qRIT<1.: # Large BH is spinning
+                    q=qRIT
+                    chi1mag=0.8
+                    chi2mag=0.
+                else: # Small BH is spinning
+                    q=1/qRIT
+                    chi1mag=0.
+                    chi2mag=0.8
+                theta1=thetaRIT # One of the two is irrelevant
+                theta2=thetaRIT # One of the two is irrelevant
+                deltaphi=0. # Irrelevant
 
 
-        #RIT = dict(zip(['string','conf','q','theta','phi','kick'], zip(*parsed)))
-
-        #print(RIT['string'])
-        # #N series
-        # series['N']={'q':1., 'chi1mag':0.,'chi2mag':0.8, 'deltaphi'=0.} # and theta1=theta2
         # series['N']['TH15']={'theta1' = np.randians(15), theta2= np.radians(15), }
         #
         # series['S']={'q':1., 'chi1mag':0.8,'chi2mag':0.8, 'deltaphi'=np.pi} # and theta2=-theta1
