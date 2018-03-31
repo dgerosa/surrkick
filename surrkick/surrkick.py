@@ -530,6 +530,39 @@ def project(timeseries,direction):
     return np.array([np.dot(t,direction) for t in timeseries])
 
 
+def maxalpha(q=1,chi1mag=0,chi2mag=0.,theta1=0.,theta2=0.,deltaphi=0.,t_ref=-100):
+    '''For a given relative configration (theta1, theta2, deltaphi), find the min and max of the kick varying over alpha.
+    Usage: kickmin,kickmax,alphamin,alphamax=maxalpha(q=1,chi1mag=0,chi2mag=0.,theta1=0.,theta2=0.,deltaphi=0.,t_ref=-100)'''
+
+    def _alphakick(alpha,q,chi1mag,chi2mag,theta1,theta2):
+        chi1 = [chi1mag*np.sin(theta1)*np.cos(alpha),chi1mag*np.sin(theta1)*np.sin(alpha),chi1mag*np.cos(theta1)]
+        chi2 = [chi2mag*np.sin(theta2)*np.cos(deltaphi+alpha),chi2mag*np.sin(theta2)*np.sin(deltaphi+alpha),chi1mag*np.cos(theta2)]
+        return surrkick(q=q,chi1=chi1,chi2=chi2,t_ref=t_ref).kick
+
+    # Generate some guesses
+    alpha_vals=np.linspace(-np.pi,np.pi,41)[1:-1:2]
+    guess=np.array([_alphakick(alpha,q,chi1mag,chi2mag,theta1,theta2) for alpha in alpha_vals])
+
+    # Find suitable bounds in alpha given the max/min array position
+    def _boundsfromid(id):
+        if id==0: # Guess is at the beginning
+            return (-np.pi,alpha_vals[id+1])
+        elif id==len(alpha_vals)-1: # Guess is at the end
+            return (alpha_vals[id-1],np.pi)
+        else: # Guess is in the middle
+            return (alpha_vals[id-1],alpha_vals[id+1])
+
+    # Find minimum
+    resmin = scipy.optimize.minimize_scalar(lambda alpha: _alphakick(alpha,q,chi1mag,chi2mag,theta1,theta2), bounds=_boundsfromid(np.argmin(guess)),  method='bounded')
+
+    # Find maximum
+    resmax = scipy.optimize.minimize_scalar(lambda alpha: -_alphakick(alpha,q,chi1mag,chi2mag,theta1,theta2), bounds=_boundsfromid(np.argmax(guess)),  method='bounded')
+
+    return resmin.fun, -resmax.fun, resmin.x, resmax.x
+
+
+
+
 class plots(object):
     '''Reproduce plots of our paper: Black-hole kicks from numerical-relativity surrogate models'''
 
@@ -1940,6 +1973,87 @@ class plots(object):
         print("Time, kick:", np.mean(timeskick),'s')
         print("Time, both:", np.mean(timesall),'s')
 
+    @classmethod
+    @plottingstuff
+    def RIT_comparison(self):
+
+        # Read in tables cleaned from tex source
+        data=np.genfromtxt(os.path.dirname(os.path.abspath(__file__))+"/"+"nr_comparison_data/RITdata.txt", dtype=(basestring,float,float,float),usecols=(0,9,11,13))
+
+        # Parse results. Output is an array where [stringRIT,confRIT,qRIT,thetaRIT,phiRIT,kickRIT], for instances
+        # parsed[0] = ['NTH15', 'N', 1.0, 0.2617993877991494, 0.0, 0.001586902918223467]
+        parsed=[]
+        for d in data:
+            stringRIT = d[0].split('PH')[0]
+            # Estraxt the configuration series
+            confRIT = d[0].split('TH')[0].split('PH')[0]
+            if confRIT=='N9':
+                continue # Skip those; spin is 0.9 which is not covered by NRSur7dq2
+            elif "NQ" in confRIT:
+                # Extract mass ratio. IMPORTANT! This is m1/m2 in the RIT notation, so 2 and 0.5 are NOT the same thing!!!
+                qRIT = float(confRIT.split('NQ')[-1])/100.
+                if qRIT>2. or qRIT<0.5: # Skip those; mass ratio not covered by NRSur7dq2
+                    continue
+                confRIT='NQ'
+            else:
+                qRIT=1. # All other configurations are equal mass
+            # Extract phi
+            phiRIT = d[0].split('PH')[-1]
+            phiRIT=np.radians(float(phiRIT))
+            # Extract theta
+            if "TH" in d[0]:
+                thetaRIT= d[0].split('TH')[-1].split('PH')[0]
+                thetaRIT=np.radians(float(thetaRIT))
+            else:
+                thetaRIT=np.nan
+            # Extract kick magnitude
+            kickRIT=convert.cisone(np.linalg.norm([d[1],d[2],d[3]]))
+
+            parsed.append([stringRIT,confRIT,qRIT,thetaRIT,phiRIT,kickRIT])
+
+        # Single out the simulation series
+        parsedsingle = sorted(list(set(zip(*parsed)[0])))
+        print(parsedsingle)
+
+        # Loop over simulation series
+        for stringRIT in parsedsingle:
+            parsedfilter = filter(lambda x:x[0]==stringRIT, parsed)
+            print(parsedfilter)
+            _,confRIT,qRIT,thetaRIT,_,kickRIT = zip(*parsedfilter)
+            assert len(set(confRIT))==1 # Just a check...
+            confRIT=str(confRIT[0]) # Kind of series (S,L,K,N,Nq)
+            assert len(set(qRIT))==1 # Just a check...
+            qRIT=float(qRIT[0]) # Mass ratio; remember 2 and 0.5 are NOT the same here!
+            assert len(set(thetaRIT))==1 # Just a check...
+            thetaRIT=float(thetaRIT[0]) # Value of theta in the RIT notation
+            kickRIT=np.array(kickRIT) # Array with all the kick values in this series
+            print(stringRIT,confRIT,qRIT,thetaRIT,kickRIT)
+
+
+        #RIT = dict(zip(['string','conf','q','theta','phi','kick'], zip(*parsed)))
+
+        #print(RIT['string'])
+        # #N series
+        # series['N']={'q':1., 'chi1mag':0.,'chi2mag':0.8, 'deltaphi'=0.} # and theta1=theta2
+        # series['N']['TH15']={'theta1' = np.randians(15), theta2= np.radians(15), }
+        #
+        # series['S']={'q':1., 'chi1mag':0.8,'chi2mag':0.8, 'deltaphi'=np.pi} # and theta2=-theta1
+        #
+        # series['K']={'q':1., 'chi1mag':0.8,'chi2mag':0.8, 'deltaphi'=0} # and theta2=-theta1
+        #
+        # series['L']={'q':1., 'chi1mag':0.8,'chi2mag':0.8, 'deltaphi'=0, 'theta1'=0, 'theta2'=np.pi/2., 'deltaphi'=0}
+        #
+        #
+        # alpha_vals=np.linspace(-np.pi,np.pi,100)
+        # kick_vals=np.array([_alphakick(alpha,q,chi1mag,chi2mag,theta1,theta2) for alpha in alpha_vals])
+        # plt.axhline(resmin.fun,c='C1',ls='dotted')
+        # plt.axhline(-resmax.fun,c='C2',ls='dotted')
+        # plt.axvline(resmin.x,c='C1',ls='dotted')
+        # plt.axvline(resmax.x,c='C2',ls='dotted')
+        # plt.plot(alpha_vals,kick_vals)
+        # plt.xlabel("$\\alpha$")
+        # plt.ylabel("$v_k$")
+        # plt.show()
 
 
 
@@ -1947,4 +2061,9 @@ class plots(object):
 if __name__ == "__main__":
 
     pass
-    plots.minimal()
+    #plots.minimal()
+
+    # N
+    #maxalpha(1,0,0.8,np.pi/2.,np.pi/2.,0)
+    #plots.alphaseries()
+    plots.RIT_comparison()
