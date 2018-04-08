@@ -27,6 +27,7 @@ import precession
 import warnings
 import json
 
+
 __author__ = "Davide Gerosa, Francois Hebert, Leo Stein"
 __email__ = "dgerosa@caltech.edu"
 __license__ = "MIT"
@@ -539,12 +540,12 @@ def alphakick(q,chi1mag,chi2mag,theta1,theta2,deltaphi,alpha,t_ref=-100):
     chi2 = [chi2mag*np.sin(theta2)*np.cos(deltaphi+alpha),chi2mag*np.sin(theta2)*np.sin(deltaphi+alpha),chi1mag*np.cos(theta2)]
     return surrkick(q=q,chi1=chi1,chi2=chi2,t_ref=t_ref).kick
 
-def maxalpha(q=1,chi1mag=0,chi2mag=0.,theta1=0.,theta2=0.,deltaphi=0.,t_ref=-100):
+def maxalpha(q=1,chi1mag=0,chi2mag=0.,theta1=0.,theta2=0.,deltaphi=0.,t_ref=-100,nguess=20):
     '''For a given relative configration (theta1, theta2, deltaphi), find the min and max of the kick varying over alpha.
     Usage: kickmin,kickmax,alphamin,alphamax=maxalpha(q=1,chi1mag=0,chi2mag=0.,theta1=0.,theta2=0.,deltaphi=0.,t_ref=-100)'''
 
     # Generate some guesses
-    alpha_vals=np.linspace(-np.pi,np.pi,41)[1:-1:2]
+    alpha_vals=np.linspace(-np.pi,np.pi,int(nguess*2+1))[1:-1:2]
     guess=alphakick(q,chi1mag,chi2mag,theta1,theta2,deltaphi,alpha_vals)
     # Find suitable bounds in alpha given the max/min array position
     def _boundsfromid(id):
@@ -1978,151 +1979,185 @@ class plots(object):
 
     @classmethod
     @plottingstuff
-    def RIT_comparison(self):
+    def RIT_check(self):
 
         # Read in tables cleaned from tex source
-        data=np.genfromtxt(os.path.dirname(os.path.abspath(__file__))+"/"+"nr_comparison_data/RITdata.txt", dtype=(basestring,float,float,float,float,float,float),usecols=(0,9,10,11,12,13,14))
+        kickdata=np.genfromtxt(os.path.dirname(os.path.abspath(__file__))+"/"+"nr_comparison_data/RITkicks.txt", dtype=(basestring,float,float,float),usecols=(0,9,11,13))
+        simdata=np.genfromtxt(os.path.dirname(os.path.abspath(__file__))+"/"+"nr_comparison_data/RITdata.txt", dtype=(basestring,float,float,float,float,float),usecols=(0,6,7,8,9,10))
 
-        # Parse results. Output is an array where [stringRIT,confRIT,qRIT,thetaRIT,phiRIT,kickRIT], for instances
-        # parsed[0] = ['NTH15', 'N', 1.0, 0.2617993877991494, 0.0, 0.001586902918223467]
         parsed=[]
-        for d in data:
-            stringRIT = d[0].split('PH')[0]
-            # Estraxt the configuration series
-            confRIT = d[0].split('TH')[0].split('PH')[0]
-            if confRIT=='N9':
-                continue # Skip those; spin is 0.9 which is not covered by NRSur7dq2
-            elif "NQ" in confRIT:
-                # Extract mass ratio. IMPORTANT! This is m1/m2 in the RIT notation, so 2 and 0.5 are NOT the same thing!!!
-                qRIT = float(confRIT.split('NQ')[-1])/100.
-                if qRIT>2. or qRIT<0.5: # Skip those; mass ratio not covered by NRSur7dq2
-                    continue
-                confRIT='NQ'
-            else:
-                qRIT=1. # All other configurations are equal mass
-            # Extract phi
-            phiRIT = d[0].split('PH')[-1]
-            phiRIT=np.radians(float(phiRIT))
-            # Extract theta
-            if "TH" in d[0]:
-                thetaRIT= d[0].split('TH')[-1].split('PH')[0]
-                thetaRIT=np.radians(float(thetaRIT))
-            else:
-                thetaRIT=np.nan
-            # Extract kick magnitude
-            vxRIT,dvxRIT,vyRIT,dvyRIT,vzRIT,dvzRIT=list(d)[1:]
+        filename='RIT_check.pkl'
+        if not os.path.isfile(filename):
+            print("Storing data:", filename)
 
-            kickRIT=convert.cisone(np.linalg.norm([vxRIT,vyRIT,vzRIT]))
+            normRIT=[]
+            for kd,sd in tqdm(zip(kickdata,simdata)):
 
-            kickminRIT=convert.cisone(np.linalg.norm([np.abs(vxRIT)-dvxRIT,np.abs(vyRIT)-dvyRIT,np.abs(vzRIT)-dvzRIT]))
-            kickmaxRIT=convert.cisone(np.linalg.norm([np.abs(vxRIT)+dvxRIT,np.abs(vyRIT)+dvyRIT,np.abs(vzRIT)+dvzRIT]))
+                simid, vx, vy, vz = kd
+                simid2, sx, sy, sz, m1, m2 = sd
+                # Sanity check. This is the same simulation...
+                assert simid==simid2
 
-            parsed.append([stringRIT,confRIT,qRIT,thetaRIT,phiRIT,kickRIT,kickminRIT,kickmaxRIT])
-
-        # Single out the simulation series
-        parsedsingle = sorted(list(set(zip(*parsed)[0])))
-
-        figs=[]
-
-        # Loop over simulation series
-        for stringRIT in tqdm(parsedsingle):
-
-            parsedfilter = filter(lambda x:x[0]==stringRIT, parsed)
-            _,confRIT,qRIT,thetaRIT,_,kickRIT,kickminRIT,kickmaxRIT = zip(*parsedfilter)
-            assert len(set(confRIT))==1 # Just a check...
-            confRIT=str(confRIT[0]) # Kind of series (S,L,K,N,Nq)
-            assert len(set(qRIT))==1 # Just a check...
-            qRIT=float(qRIT[0]) # Mass ratio; remember 2 and 0.5 are NOT the same here!
-            assert len(set(thetaRIT))==1 # Just a check...
-            thetaRIT=float(thetaRIT[0]) # Value of theta in the RIT notation
-            kickRIT=np.array(kickRIT) # Array with all the kick values in this series
-            kickminRIT=np.array(kickminRIT) # Array with all the kick values in this series
-            kickmaxRIT=np.array(kickmaxRIT) # Array with all the kick values in this series
-
-            # Convert RIT notation to surrkick inputs
-            if confRIT=='S':
-                assert qRIT==1.
-                q=qRIT
-                chi1mag=0.8
-                chi2mag=0.8
-                theta1=thetaRIT
-                theta2=np.pi-thetaRIT
-                deltaphi=np.pi
-            elif confRIT=='K':
-                assert qRIT==1.
-                q=qRIT
-                chi1mag=0.8
-                chi2mag=0.8
-                theta1=thetaRIT
-                theta2=np.pi-thetaRIT
-                deltaphi=0.
-            elif confRIT=='L':
-                assert qRIT==1.
-                q=qRIT
-                chi1mag=0.8
-                chi2mag=0.8
-                theta1=0.
-                theta2=np.pi/2.
-                deltaphi=0.
-            elif confRIT=='N':
-                assert qRIT==1.
-                q=qRIT
-                chi1mag=0.
-                chi2mag=0.8
-                theta1=thetaRIT # Irrelevant
-                theta2=thetaRIT
-                deltaphi=0. # Irrelevant
-            elif confRIT=='NQ':
-                if qRIT<1.: # Large BH is spinning
-                    q=qRIT
+                # Parse the confoiguration name
+                # Extract the series name (e.g. "NTH15")
+                series = simid.split('PH')[0]
+                # Estraxt the configuration name (e.g. "N")
+                configuration = simid.split('TH')[0].split('PH')[0]
+                # Nominal mass ratio
+                if "NQ" in configuration:
+                    # IMPORTANT! Mass ratio here is m1/m2 in the RIT notation, so 2 and 0.5 are NOT the same thing.
+                    qconf = float(configuration.split('NQ')[-1])/100.
+                    configuration='NQ'
+                else:
+                    qconf=1. # All other configurations are nominally equal mass
+                # Extract phi from configuration name
+                phiconf = float(simid.split('PH')[-1])
+                # Extract theta from configuration name
+                if "TH" in simid:
+                    thetaconf= float(simid.split('TH')[-1].split('PH')[0])
+                else:
+                    thetaconf=np.nan
+                # Nominal spin values, converting RIT notation to our notation
+                if configuration=='S':
+                    chi1conf=0.8
+                    chi2conf=0.8
+                    theta1conf=thetaconf
+                    theta2conf=180.-thetaconf
+                    deltaphiconf=180.
+                elif configuration=='K':
                     chi1mag=0.8
-                    chi2mag=0.
-                else: # Small BH is spinning
-                    q=1/qRIT
-                    chi1mag=0.
                     chi2mag=0.8
-                theta1=thetaRIT # One of the two is irrelevant
-                theta2=thetaRIT # One of the two is irrelevant
-                deltaphi=0. # Irrelevant
+                    theta1conf=thetaconf
+                    theta2conf=180.-thetaconf
+                    deltaphiconf=0.
+                elif configuration=='L':
+                    chi1conf=0.8
+                    chi2conf=0.8
+                    theta1conf=0.
+                    theta2conf=90.
+                    deltaphiconf=0.
+                elif configuration=='N':
+                    chi1conf=0.
+                    chi2conf=0.8
+                    theta1conf=0 # Irrelevant
+                    theta2conf=thetaconf
+                    deltaphiconf=0 # Irrelevant
+                elif configuration=='N9':
+                    chi1conf=0.
+                    chi2conf=0.9
+                    theta1conf=0 # Irrelevant
+                    theta2conf=thetaconf
+                    deltaphiconf=0 # Irrelevant
+                elif configuration=='NQ':
+                    if qconf<1.: # Large BH is spinning
+                        chi1conf=0.8
+                        chi2conf=0.
+                        theta1conf=thetaconf
+                        theta2conf=0. # Irrelevant
+                    else: # Small BH is spinning
+                        qconf=1/qconf
+                        chi1conf=0.
+                        chi2conf=0.8
+                        theta1conf=0. # Irrelevant
+                        theta2conf=thetaconf
+                    deltaphiconf=0. # Irrelevant
+
+                # Extract kick magnitude
+                kickRIT=convert.cisone(np.linalg.norm([vx,vy,vz]))
+
+                # Actual spin values in the RIT simulations
+                if configuration in ['N','N9','S','K','L']: # Spin in table is S1
+                    chi1 = np.array([sx,sy,sz]) / m1**2
+                    if configuration in ['N','N9']:
+                        chi2=0*chi1
+                    elif configuration=='S':
+                        chi2=-chi1
+                    elif configuration=='K':
+                        chi2=np.array([chi1[0],chi1[1],-chi1[2]])
+                    elif configuration=='L':
+                        chi2=np.array([0,0,np.linalg.norm(chi1)])
+                elif configuration=='NQ':
+                    chi2 = np.array([sx,sy,sz]) / m2**2 # Spin in table is S1
+                    chi1 = 0*chi2
+                else:
+                    raise ValueError("Configuration is", configuration)
+
+                with warnings.catch_warnings():
+                    warnings.simplefilter(action='ignore', category=RuntimeWarning)
+                    theta1,theta2,deltaphi,_=np.degrees(precession.build_angles([0,0,1],chi1,chi2))
+                    if np.isnan(theta1):
+                        theta1=0
+                    if np.isnan(theta2):
+                        theta2=0
+                    if np.isnan(deltaphi):
+                        deltaphi=0
+
+                # In our notation, "1" is the larger BH. If that's not the case, flip the "1" and "2" labels
+                if m1<m2:
+                    m1,m2=m2,m1
+                    chi1,chi2=chi2,chi1
+                    theta1,theta2=theta2,theta1
+                    deltaphi=-deltaphi
+                q=m2/m1
+                chi1mag = np.linalg.norm(chi1)
+                chi2mag = np.linalg.norm(chi2)
+
+                # Skip simulations which are outside the surrogate range (with some tolerance...)
+                if q<0.49 or chi1mag>0.81 or chi2mag>0.81 :
+                    continue
+
+                # Check that values extracted in both ways more or less agree
+                assert np.abs(min(qconf,1/qconf)-q)<2e-2
+                if qconf==1: # In this case the labels don't matter
+                    assert(np.abs(min(chi1conf,chi2conf)-min(chi1mag,chi2mag))<1e-2)
+                    assert(np.abs(max(chi1conf,chi2conf)-max(chi1mag,chi2mag))<1e-2)
+                    assert(np.abs(min(theta1conf,theta2conf)-min(theta1,theta2))<2e-1)
+                    assert(np.abs(max(theta1conf,theta2conf)-max(theta1,theta2))<2e-1)
+                else: # In this case labels matter
+                    assert(np.abs(chi1conf-chi1mag)<1e-2)
+                    assert(np.abs(chi2conf-chi2mag)<1e-2)
+                    assert(np.abs(theta1conf-theta1)<2e-1)
+                    assert(np.abs(theta2conf-theta2)<2e-1)
+
+                theta1=np.radians(theta1)
+                theta2=np.radians(theta2)
+                deltaphi=np.radians(deltaphi)
+
+                # Maximize kicks over alpha and t_ref
+                alpha_vals=np.linspace(-np.pi,np.pi,100)
+                t_vals = np.linspace(-4500,-100,100)
+                kickext=[]
+                for a in tqdm(alpha_vals):
+                    for t in tqdm(t_vals):
+                        kickext.append(alphakick(q,chi1mag,chi2mag,theta1,theta2,deltaphi,a,t_ref=t))
+                # Normalize RIT kicks between 0 and 1
+                normRIT.append((kickRIT - min(kickext))/(max(kickext)-min(kickext)))
+
+            with open(filename, 'wb') as f: pickle.dump(normRIT, f)
+
+        with open(filename, 'rb') as f: normRIT = np.array(pickle.load(f))
+
+        fig = plt.figure(figsize=(6, 6))
+        ax = fig.add_axes([0, 0, 0.8, 0.4])
+        for x in [0,1]:
+            ax.axvline(x,lw=3,c='black',alpha=0.7,ls='dashed')
+        ax.hist(normRIT,bins=np.linspace(-0.2,1.3,16),histtype='step',lw=3,alpha=1,color='C0')
+        ax.hist(normRIT,bins=np.linspace(-0.2,1.3,16),histtype='stepfilled',alpha=0.2,color='C0')
+        ax.text(-0.15,5,"$\\textbf{"+str(len(normRIT[normRIT<0]))+"/"+str(len(normRIT))+"}$",horizontalalignment='center',transform=ax.transData,color='C3')
+        ax.text(0.5,5,"$\\textbf{"+str(len(normRIT[np.logical_and(normRIT>0,normRIT<1)]))+"/"+str(len(normRIT))+"}$",horizontalalignment='center',transform=ax.transData,color='C2')
+        ax.text(1.15,5,"$\\textbf{"+str(len(normRIT[normRIT>1]))+"/"+str(len(normRIT))+"}$",horizontalalignment='center',transform=ax.transData, color='C3')
+        ax.set_xlim(-0.3,1.3)
+        ax.set_xlabel("$\\nu_k$")
+        ax.set_ylabel("$N$")
+        ax.xaxis.set_major_locator(MultipleLocator(0.2))
+        ax.xaxis.set_minor_locator(MultipleLocator(0.05))
+        ax.yaxis.set_minor_locator(AutoMinorLocator())
+
+        return fig
 
 
 
 
-            alpha_vals=np.linspace(-np.pi,np.pi,50)
-            #kickmin,kickmax,alphamin,alphamax = maxalpha(q=q,chi1mag=chi1mag,chi2mag=chi2mag,theta1=theta1,theta2=theta2,deltaphi=deltaphi)
-
-            fig = plt.figure(figsize=(6, 6))
-            ax = fig.add_axes([0, 0, 1, 1])
-            #ax.axhline(kickmin,c='C1',ls='dotted')
-            #ax.axhline(kickmax,c='C2',ls='dotted')
-            #ax.axvline(alphamin,c='C1',ls='dotted')
-            #ax.axvline(alphamax,c='C2',ls='dotted')
-
-            for t in [-4500,-2200,-100]:
-                kick_vals = alphakick(q,chi1mag,chi2mag,theta1,theta2,deltaphi,alpha_vals,t_ref=t)
-
-                ax.plot(alpha_vals,kick_vals)
-            ax.set_xlabel("$\\alpha$")
-            ax.set_ylabel("$v_k$")
-            #for k in kickRIT:
-            #    ax.axhline(k,c='C3',ls='dashed')
-            for k in kickminRIT:
-                ax.axhline(k,c='C3',ls='dashed')
-
-            for k in kickmaxRIT:
-                ax.axhline(k,c='C3',ls='dashed')
-
-
-            for kmin,kmax in zip(kickminRIT,kickmaxRIT):
-                ax.fill_between(alpha_vals, kmin, kmax, facecolor='C3', alpha=0.5)
-
-            ax.set_ylim(0,0.01)
-            ax.set_xlim(-np.pi,np.pi)
-
-            ax.set_title(stringRIT)
-            figs.append(fig)
-
-        return figs
 
 ########################################
 if __name__ == "__main__":
@@ -2130,4 +2165,4 @@ if __name__ == "__main__":
     pass
     #plots.minimal()
 
-    plots.RIT_comparison()
+    plots.RIT_check()
