@@ -16,7 +16,7 @@ When using `surrkick` in any published work, please cite the paper describing it
 Davide Gerosa, Francois Hebert, Leo C. Stein.
 [arXiv:1802.04276](https://arxiv.org/abs/arXiv:1802.04276)
 
-The code is developed and maintained by [Davide Gerosa](www.davidegerosa.com), [Francois Hebert](https://github.com/fmahebert) and [Leo Stein](https://duetosymmetry.com). We thank Jonathan Blackman, Chad Galley, Mark Scheel, Ulrich Sperhake, Leo Stein, Saul Teukolsky and Vijay Varma for various discussions and technical help.
+The code is developed and maintained by [Davide Gerosa](www.davidegerosa.com), [Francois Hebert](https://github.com/fmahebert) and [Leo Stein](https://duetosymmetry.com). We thank Jonathan Blackman, Chad Galley, Mark Scheel, Ulrich Sperhake, Saul Teukolsky and Vijay Varma for various discussions and technical help.
 
 ### Releases
 
