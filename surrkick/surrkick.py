@@ -1980,6 +1980,8 @@ class plots(object):
     @classmethod
     @plottingstuff
     def RIT_check(self):
+        '''Fig. 15. Comparison with RIT simulations.
+        Usage: surrkick.plots.RIT_check()'''
 
         # Read in tables cleaned from tex source
         kickdata=np.genfromtxt(os.path.dirname(os.path.abspath(__file__))+"/"+"nr_comparison_data/RITkicks.txt", dtype=(basestring,float,float,float),usecols=(0,9,11,13))
@@ -1991,6 +1993,10 @@ class plots(object):
             print("Storing data:", filename)
 
             normRIT=[]
+            kicksRIT=[]
+            kicksmin=[]
+            kicksmax=[]
+
             for kd,sd in tqdm(zip(kickdata,simdata)):
 
                 simid, vx, vy, vz = kd
@@ -2123,35 +2129,59 @@ class plots(object):
                 theta2=np.radians(theta2)
                 deltaphi=np.radians(deltaphi)
 
-                # Maximize kicks over alpha and t_ref
-                alpha_vals=np.linspace(-np.pi,np.pi,100)
-                t_vals = np.linspace(-4500,-100,100)
-                kickext=[]
-                for a in tqdm(alpha_vals):
-                    for t in tqdm(t_vals):
-                        kickext.append(alphakick(q,chi1mag,chi2mag,theta1,theta2,deltaphi,a,t_ref=t))
+                # Maximize kicks over t_ref using a maximization algorithm
+                # Initial guesses
+                nguess=1000
+                t_vals = np.linspace(-4500,-100,int(nguess*2+1))[1:-1:2]
+                guess=[surrkick(q=q,chi1=chi1,chi2=chi2,t_ref=t).kick for t in t_vals]
+                # Find suitable bounds in alpha given the max/min array position
+                def _boundsfromid(id):
+                    if id==0: # Guess is at the beginning
+                        return (-4500,t_vals[id+1])
+                    elif id==len(t_vals)-1: # Guess is at the end
+                        return (t_vals[id-1],-100)
+                    else: # Guess is in the middle
+                        return (t_vals[id-1],t_vals[id+1])
+                # Find minimum, start from the smaller guess
+                resmin = scipy.optimize.minimize_scalar(lambda t: surrkick(q=q,chi1=chi1,chi2=chi2,t_ref=t).kick , bounds=_boundsfromid(np.argmin(guess)),  method='bounded')
+                kickmin = resmin.fun
+                # Find maximum, start from the larger guess (note minus sign)
+                resmax = scipy.optimize.minimize_scalar(lambda t: -surrkick(q=q,chi1=chi1,chi2=chi2,t_ref=t).kick , bounds=_boundsfromid(np.argmax(guess)),  method='bounded')
+                kickmax = -resmax.fun
+
                 # Normalize RIT kicks between 0 and 1
-                normRIT.append((kickRIT - min(kickext))/(max(kickext)-min(kickext)))
+                normRIT.append((kickRIT - kickmin)/(kickmax-kickmin))
+                kicksRIT.append(kickRIT)
+                kicksmin.append(kickmin)
+                kicksmax.append(kickmax)
 
-            with open(filename, 'wb') as f: pickle.dump(normRIT, f)
+            with open(filename, 'wb') as f: pickle.dump([normRIT,kicksRIT,kicksmin,kicksmax], f)
 
-        with open(filename, 'rb') as f: normRIT = np.array(pickle.load(f))
+        with open(filename, 'rb') as f: normRIT,kicksRIT,kicksmin,kicksmax = np.array(pickle.load(f))
+
+        print(convert.kms(max(kicksRIT-kicksmax)))
 
         fig = plt.figure(figsize=(6, 6))
         ax = fig.add_axes([0, 0, 0.8, 0.4])
         for x in [0,1]:
             ax.axvline(x,lw=3,c='black',alpha=0.7,ls='dashed')
-        ax.hist(normRIT,bins=np.linspace(-0.2,1.3,16),histtype='step',lw=3,alpha=1,color='C0')
-        ax.hist(normRIT,bins=np.linspace(-0.2,1.3,16),histtype='stepfilled',alpha=0.2,color='C0')
-        ax.text(-0.15,5,"$\\textbf{"+str(len(normRIT[normRIT<0]))+"/"+str(len(normRIT))+"}$",horizontalalignment='center',transform=ax.transData,color='C3')
-        ax.text(0.5,5,"$\\textbf{"+str(len(normRIT[np.logical_and(normRIT>0,normRIT<1)]))+"/"+str(len(normRIT))+"}$",horizontalalignment='center',transform=ax.transData,color='C2')
-        ax.text(1.15,5,"$\\textbf{"+str(len(normRIT[normRIT>1]))+"/"+str(len(normRIT))+"}$",horizontalalignment='center',transform=ax.transData, color='C3')
+        ax.hist(normRIT,bins=np.linspace(0,1.15,24),histtype='step',lw=3,alpha=1,color='C0')
+        ax.hist(normRIT,bins=np.linspace(0,1.15,24),histtype='stepfilled',alpha=0.2,color='C0')
+        ax.text(-0.15,11,"$\\textbf{"+str(len(normRIT[normRIT<0]))+"/"+str(len(normRIT))+"}$",horizontalalignment='center',transform=ax.transData,color='C3')
+        ax.text(0.5,11,"$\\textbf{"+str(len(normRIT[np.logical_and(normRIT>0,normRIT<1)]))+"/"+str(len(normRIT))+"}$",horizontalalignment='center',transform=ax.transData,color='C2')
+        ax.text(1.15,11,"$\\textbf{"+str(len(normRIT[normRIT>1]))+"/"+str(len(normRIT))+"}$",horizontalalignment='center',transform=ax.transData, color='C3')
         ax.set_xlim(-0.3,1.3)
+        ax.set_ylim(0,13)
+
         ax.set_xlabel("$\\nu_k$")
         ax.set_ylabel("$N$")
         ax.xaxis.set_major_locator(MultipleLocator(0.2))
         ax.xaxis.set_minor_locator(MultipleLocator(0.05))
-        ax.yaxis.set_minor_locator(AutoMinorLocator())
+        ax.yaxis.set_major_locator(MultipleLocator(2))
+        ax.yaxis.set_minor_locator(MultipleLocator(1))
+
+        fig = plt.figure(figsize=(6, 6))
+        ax = fig.add_axes([0, 0, 0.8, 0.8])
 
         return fig
 
@@ -2163,6 +2193,4 @@ class plots(object):
 if __name__ == "__main__":
 
     pass
-    #plots.minimal()
-
-    plots.RIT_check()
+    plots.minimal()
