@@ -1,3 +1,6 @@
+#python setup.py sdist upload -r test
+#python setup.py sdist upload
+
 from setuptools import setup
 
 # Extract version
