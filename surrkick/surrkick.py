@@ -31,7 +31,7 @@ import json
 __author__ = "Davide Gerosa, Francois Hebert, Leo Stein"
 __email__ = "dgerosa@caltech.edu"
 __license__ = "MIT"
-__version__ = "1.1.0"
+__version__ = "1.1.1"
 __doc__+="\n\n"+"Authors: "+__author__+"\n"+\
         "email: "+__email__+"\n"+\
         "Licence: "+__license__+"\n"+\
