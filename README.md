@@ -72,11 +72,11 @@ The source code for the `surrkick.plots.minimal()` method mentioned above is
     sk=surrkick.surrkick(q=0.5,chi1=[0.8,0,0],
         chi2=[-0.8,0,0])
     print 'vk/c=', sk.kick
-    plt.plot(sk.times,sk.voft[:,0],label="x")
-    plt.plot(sk.times,sk.voft[:,1],label="y")
-    plt.plot(sk.times,sk.voft[:,2],label="z")
+    plt.plot(sk.times,sk.voft[:,0],label='x')
+    plt.plot(sk.times,sk.voft[:,1],label='y')
+    plt.plot(sk.times,sk.voft[:,2],label='z')
     plt.plot(sk.times,surrkick.project(sk.voft,
-        sk.kickdir),label="vk")
+        sk.kickdir),label='vk')
     plt.xlim(-100,100)
     plt.legend()
     plt.show()
