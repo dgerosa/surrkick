@@ -61,9 +61,7 @@ The core of the code consists of a single class, surrkick, whose methods allow t
 - `Jrad`: Total radiated angular momentum.                                   
 - `xoft`: Center-of-mass trajectory x(t).   
 
-The class `plots` contains script to reproduce all figures and results in 
-[arXiv:1802.04276](https://arxiv.org/abs/arXiv:1802.04276). 
-You can explore its methods with, e.g. `help(surrkick.plots)`. 
+The class `plots` contains script to reproduce all figures and results in  [arXiv:1802.04276](https://arxiv.org/abs/arXiv:1802.04276). You can explore its methods with, e.g. `help(surrkick.plots)`. 
 
 ### Test
 
