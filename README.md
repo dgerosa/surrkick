@@ -82,3 +82,7 @@ The source code for the `surrkick.plots.minimal()` method mentioned above is
 
 If you try it, you should get a printout that reads `vk/c= 0.00387...` and this plot:
 ![minimal](https://user-images.githubusercontent.com/7237041/35894834-7f84c500-0b69-11e8-99bd-bc4faa738fda.png)
+
+### Results
+
+[Here](https://www.youtube.com/watch?v=a_StJoMvCSU&list=PLVjP4QK1oHulLGS1qKonkmWeQvMEADGYs&index=2&t=0s) are some animations produced with `surrkick`.
