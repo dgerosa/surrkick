@@ -1,24 +1,18 @@
 # surrkick
 
-#### Black-hole kicks from numerical-relativity surrogate models
-
-Binary black holes radiate linear momentum in gravitational waves as they merge. Recoils imparted to the black-hole remnant can reach thousands of km/s, thus ejecting black holes from their host galaxies. We exploit recent advances in gravitational waveform modeling to quickly and reliably extract recoils imparted to generic, precessing, black hole binaries. Our procedure uses a numerical-relativity surrogate model to obtain the gravitational waveform given a set of binary parameters, then from this waveform we directly integrate the gravitational-wave linear momentum flux. This entirely bypasses the need of fitting formulae which are typically used to model black-hole recoils in astrophysical contexts. We provide a thorough exploration of the black-hole kick phenomenology in the parameter space, summarizing and extending previous numerical results on the topic. Our extraction procedure is made publicly available as a module for the Python programming language named `surrkick`. Kick evaluations take 0.1s on a standard off-the-shelf machine, thus making our code ideal to be ported to large-scale astrophysical studies.
-
-### Credits
-
-When using `surrkick` in any published work, please cite the paper describing its implementation:
+Code and data release supporting
 
 - *Black-hole kicks from numerical-relativity surrogate models.*
 Davide Gerosa, Francois Hebert, Leo C. Stein.
+Phys. Rev. D 97, 104049 (2018).
 [arXiv:1802.04276](https://arxiv.org/abs/arXiv:1802.04276)
 
-The code is developed and maintained by [Davide Gerosa](www.davidegerosa.com), [Francois Hebert](https://github.com/fmahebert) and [Leo Stein](https://duetosymmetry.com). We thank Jonathan Blackman, Chad Galley, Mark Scheel, Ulrich Sperhake, Saul Teukolsky and Vijay Varma for various discussions and technical help.
 
-### Releases
+## Credits
 
-[![DOI](https://zenodo.org/badge/119469724.svg)](https://zenodo.org/badge/latestdoi/119469724) Stable version released together with the first arxiv submission of [arXiv:1802.04276](https://arxiv.org/abs/arXiv:1802.04276).
+You are welcome to use our software/data in your research. We kindly ask you to cite the paper above. If you want to cite this data release specifically, the DOI code is: [![DOI](https://zenodo.org/badge/119469724.svg)](https://zenodo.org/badge/latestdoi/119469724)
 
-### Installation
+## Installation
 
 `surrkick` is a python module, uploaded to the [Python Package index](https://pypi.python.org/pypi/surrkick). Installation is as easy as
 
@@ -30,7 +24,7 @@ You can try some functionalities with
     import surrkick
     surrkick.plots.minimal()
 
-### Main functions
+## Main functions
 
 The core of the code consists of a single class, surrkick, whose methods allow to extract radiated energy, linear momentum (kicks) and angular momentum from the underlying waveform approximant. The main methods are:
 
@@ -60,9 +54,9 @@ The core of the code consists of a single class, surrkick, whose methods allow t
 - `Jrad`: Total radiated angular momentum.                                   
 - `xoft`: Center-of-mass trajectory x(t).   
 
-The class `plots` contains script to reproduce all figures and results in  [arXiv:1802.04276](https://arxiv.org/abs/arXiv:1802.04276). You can explore its methods with, e.g. `help(surrkick.plots)`. 
+The class `plots` contains scripts to reproduce all figures and results in  [arXiv:1802.04276](https://arxiv.org/abs/arXiv:1802.04276). You can explore its methods with, e.g. `help(surrkick.plots)`. 
 
-### Test
+## Test
 
 The source code for the `surrkick.plots.minimal()` method mentioned above is
     
@@ -83,6 +77,15 @@ The source code for the `surrkick.plots.minimal()` method mentioned above is
 If you try it, you should get a printout that reads `vk/c= 0.00384...` and this plot:
 ![minimal](https://user-images.githubusercontent.com/7237041/35894834-7f84c500-0b69-11e8-99bd-bc4faa738fda.png)
 
-### Results
+## Movies
 
-[Here](https://www.youtube.com/watch?v=a_StJoMvCSU&list=PLVjP4QK1oHulLGS1qKonkmWeQvMEADGYs&index=2&t=0s) are some animations produced with `surrkick`.
+Here are some animations produced with `surrkick`. Also available in this [Youtube playlist](https://www.youtube.com/watch?v=a_StJoMvCSU&list=PLVjP4QK1oHulLGS1qKonkmWeQvMEADGYs&index=2&t=0s)
+
+
+https://github.com/user-attachments/assets/06724bb2-c7ea-43e8-aec0-4e033d1e2ac6
+
+https://github.com/user-attachments/assets/d35acea3-f5f9-4996-bb74-ef760640f5b9
+
+https://github.com/user-attachments/assets/24ee917d-e987-4baf-a231-853c59737757
+
+
